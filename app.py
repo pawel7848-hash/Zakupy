@@ -80,29 +80,50 @@ elif page == "Lista Zakupow":
 elif page == "Lista Zakupow":
     st.title("🛒 Lista")
 
+    # MAGIA CSS: To fizycznie zmniejsza przyciski i usuwa marginesy
+    st.markdown("""
+        <style>
+        /* Zmniejszamy wysokość rzędu i usuwamy odstępy */
+        div[data-testid="stHorizontalBlock"] {
+            align-items: center !important;
+            gap: 0px !important;
+            margin-bottom: -15px !important;
+        }
+        /* Drastycznie zmniejszamy sam przycisk */
+        button[kind="secondary"] {
+            padding: 2px 10px !important;
+            height: auto !important;
+            min-height: 20px !important;
+            width: 40px !important;
+            margin: 0px !important;
+        }
+        /* Usuwamy paddingi kolumn */
+        div[data-testid="column"] {
+            padding: 0px !important;
+            flex: unset !important;
+            min-width: unset !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     try:
         df = conn.read(worksheet="Spizarnia")
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
-            # Tworzymy listę wyboru (Selectbox), która zajmuje tylko JEDNĄ linię na telefonie
-            # Wybierasz produkt z listy i klikasz JEDEN przycisk pod spodem, żeby go "odznaczyć"
-            wybrany = st.selectbox("Wybierz co kupiłeś:", braki['Produkt'].tolist())
-            
-            if st.button(f"Zatwierdź: {wybrany}", use_container_width=True):
-                # Szukamy indeksu wybranego produktu
-                idx = df[df['Produkt'] == wybrany].index[0]
-                df.at[idx, 'Stan'] = "Mamy"
-                conn.update(worksheet="Spizarnia", data=df)
-                st.cache_data.clear()
-                st.rerun()
-
-            st.write("---")
-            st.write("**Pozostało do kupienia:**")
-            # Wyświetlamy resztę jako zwykły tekst (bardzo ciasno)
-            for _, row in braki.iterrows():
-                st.markdown(f"🔴 {row['Produkt']} <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
+            for index, row in braki.iterrows():
+                # Ustawiamy proporcje: 85% na tekst, 15% na guzik
+                c1, c2 = st.columns([0.85, 0.15])
                 
+                # Tekst w lewej kolumnie
+                c1.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
+                
+                # Mały guzik w prawej kolumnie
+                if c2.button("✅", key=f"lp_{index}"):
+                    df.at[index, 'Stan'] = "Mamy"
+                    conn.update(worksheet="Spizarnia", data=df)
+                    st.cache_data.clear()
+                    st.rerun()
         else:
             st.success("Wszystko kupione! 🎉")
             
