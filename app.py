@@ -80,40 +80,23 @@ elif page == "Lista Zakupow":
 elif page == "Lista Zakupow":
     st.title("🛒 Lista")
 
-    # Ten blok CSS wymusza brak marginesów między kolumnami na telefonie
-    st.markdown("""
-        <style>
-        [data-testid="column"] {
-            width: unset !important;
-            flex: unset !important;
-            min-width: unset !important;
-        }
-        div[data-testid="stHorizontalBlock"] {
-            gap: 0rem;
-            display: flex;
-            align-items: center;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
     try:
         df = conn.read(worksheet="Spizarnia")
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
             for index, row in braki.iterrows():
-                # Definiujemy kolumny: 85% na tekst, 15% na przycisk
-                c1, c2 = st.columns([0.85, 0.15])
-                
-                # Tekst (wyświetlany w lewej kolumnie)
-                c1.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
-                
-                # Przycisk (wyświetlany w prawej kolumnie)
-                if c2.button("✅", key=f"lp_{index}"):
-                    df.at[index, 'Stan'] = "Mamy"
-                    conn.update(worksheet="Spizarnia", data=df)
-                    st.cache_data.clear()
-                    st.rerun()
+                # Używamy kontenera z obramowaniem (border), żeby oddzielić produkty
+                with st.container(border=True):
+                    # Wyświetlamy tekst i przycisk w układzie "płaskim"
+                    # Usuwamy kolumny, dajemy wszystko w jednym ciągu
+                    st.write(f"🔴 **{row['Produkt']}** ({row['Kategoria']})")
+                    
+                    if st.button(f"Kupione ✅", key=f"lp_{index}", use_container_width=True):
+                        df.at[index, 'Stan'] = "Mamy"
+                        conn.update(worksheet="Spizarnia", data=df)
+                        st.cache_data.clear()
+                        st.rerun()
         else:
             st.success("Wszystko kupione! 🎉")
             
