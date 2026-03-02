@@ -1,2 +1,2 @@
 streamlit
-streamlit-gsheets
+streamlit-gsheets==0.0.3
