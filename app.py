@@ -205,25 +205,33 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ MENU DOM", use_container_width=True): wroc_do_domu()
     st.title("🚗 AUTO")
     
-    # Wymuszenie równego układu kolumn na mobile za pomocą CSS
+    # Wymuszenie równego układu kolumn na mobile BEZ wychodzenia poza ekran
     st.markdown("""
         <style>
-        /* Szukamy kontenera z kolumnami i blokujemy zawijanie do nowej linii */
+        /* Kontener główny - blokujemy wychodzenie poza ekran */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 10px !important;
+            width: 100% !important;
+            gap: 5px !important;
         }
-        /* Upewniamy się, że każda kolumna ma połowę szerokości */
+        /* Każda kolumna ma dokładnie połowę dostępnego miejsca minus przerwa */
         div[data-testid="column"] {
-            width: 50% !important;
-            min-width: 50% !important;
-            flex: 1 1 50% !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            width: 100% !important;
         }
-        /* Opcjonalnie: zmniejszenie fontu w popoverze, żeby tekst nie uciekał */
+        /* Poprawka dla przycisków wewnątrz - żeby tekst nie wystawał */
+        button[data-testid="stBaseButton-secondary"] {
+            padding: 0px 2px !important;
+            margin: 0px !important;
+            overflow: hidden !important;
+        }
+        /* Zmniejszenie czcionki na przyciskach, żeby wszystko weszło */
         button[data-testid="stBaseButton-secondary"] p {
-            font-size: 13px !important;
+            font-size: 11px !important;
+            white-space: nowrap !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -238,3 +246,4 @@ elif st.session_state.page == "Auto":
     
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
+
