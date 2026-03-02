@@ -43,7 +43,6 @@ def zmien_sekcje_kuchni(nazwa):
 
 # Funkcja do obsługi terminów (Auto/Pies) z kolorami
 def kafelek_terminu(label, kategoria, nazwa_klucza):
-    # Deklaracja global musi być na samym początku funkcji
     global df_inne 
     
     row = df_inne[(df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)]
@@ -51,25 +50,30 @@ def kafelek_terminu(label, kategoria, nazwa_klucza):
     
     if not row.empty:
         try:
-            data_terminu = pd.to_datetime(row.iloc[0]['Wartosc']).date()
+            # Wymuszamy format europejski przy czytaniu z Google Sheets
+            val = row.iloc[0]['Wartosc']
+            data_terminu = pd.to_datetime(val, dayfirst=True).date()
+            
             if data_terminu >= today:
                 kolor, status = "green", "✅ AKTUALNE"
             else:
-                kolor, status = "red", "🚨 PO TERMINIE!"
+                kolor, status = "red", f"🚨 PO TERMINIE! ({data_terminu})"
         except:
             data_terminu, kolor, status = today, "gray", "BŁĄD DATY"
     else:
         data_terminu, kolor, status = today, "gray", "BRAK DANYCH"
 
-    with st.popover(f":{kolor}[{label}: {data_terminu}] \n\n {status}", use_container_width=True):
+    with st.popover(f":{kolor}[{label}: {data_terminu.strftime('%d.%m.%Y')}] \n\n {status}", use_container_width=True):
         st.write(f"Zmień datę: {label}")
-        nowa = st.date_input(f"Wybierz datę", value=data_terminu, key=f"d_{kategoria}_{nazwa_klucza}")
+        # Ustawiamy kalendarz tak, by wyświetlał datę w formacie lokalnym
+        nowa = st.date_input(f"Wybierz datę", value=data_terminu, key=f"d_{kategoria}_{nazwa_klucza}", format="DD.MM.YYYY")
         if st.button(f"Zapisz", key=f"b_{kategoria}_{nazwa_klucza}"):
+            # Zapisujemy jako tekst w formacie YYYY-MM-DD (najbezpieczniejszy dla baz danych)
             mask = (df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)
             if not df_inne[mask].empty:
-                df_inne.loc[mask, 'Wartosc'] = str(nowa)
+                df_inne.loc[mask, 'Wartosc'] = nowa.strftime('%Y-%m-%d')
             else:
-                new_row = pd.DataFrame([{"Kategoria": kategoria, "Nazwa": nazwa_klucza, "Wartosc": str(nowa)}])
+                new_row = pd.DataFrame([{"Kategoria": kategoria, "Nazwa": nazwa_klucza, "Wartosc": nowa.strftime('%Y-%m-%d')}])
                 df_inne = pd.concat([df_inne, new_row], ignore_index=True)
             conn.update(worksheet="Inne", data=df_inne)
             refresh_all()
@@ -204,3 +208,4 @@ elif st.session_state.page == "Auto":
     kafelek_terminu("📄 Ubezpieczenie", "Auto", "Ubezpieczenie")
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
+
