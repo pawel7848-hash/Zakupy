@@ -62,32 +62,58 @@ elif st.session_state.page == "Lista":
         st.success("Wszystko kupione! 🎉")
 
 # --- SEKCJA 2: STAN SPIŻARNI ---
+# --- SEKCJA 2: STAN SPIŻARNI ---
 elif st.session_state.page == "Spizarnia":
+    # 1. WIDOK LISTY MIEJSC (Szafka, Lodówka itd.)
     if st.session_state.wybrane_miejsce is None:
-        if st.button("⬅️ MENU", use_container_width=True): zmien_strone("Menu")
+        if st.button("🏠 POWRÓT DO MENU GŁÓWNEGO", use_container_width=True):
+            zmien_strone("Menu")
+            st.rerun()
+            
         st.title("📦 WYBIERZ MIEJSCE")
         miejsca = sorted(df_spizarnia['Miejsce'].fillna('Inne').unique())
         for m in miejsca:
             if st.button(f"📂 {m.upper()}", key=f"m_{m}", use_container_width=True):
                 st.session_state.wybrane_miejsce = m
                 st.rerun()
+
+    # 2. WIDOK WNĘTRZA MIEJSCA (np. Jesteś w Lodówce)
     else:
-        if st.button("⬅️ WRÓĆ DO MIEJSC", use_container_width=True):
-            st.session_state.wybrane_miejsce = None
-            st.rerun()
+        # Dwa przyciski nawigacyjne obok siebie
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("⬅️ DO MIEJSC", use_container_width=True):
+                st.session_state.wybrane_miejsce = None
+                st.rerun()
+        with col2:
+            if st.button("🏠 DO MENU", use_container_width=True):
+                zmien_strone("Menu")
+                st.rerun()
         
         miejsce = st.session_state.wybrane_miejsce
         st.header(f"📍 {miejsce.upper()}")
 
+        # Sekcja dodawania produktu
         with st.expander("➕ Dodaj produkt tutaj"):
             with st.form("quick_add", clear_on_submit=True):
-                nowy = st.text_input("Nazwa:")
+                nowy = st.text_input("Nazwa produktu:")
                 if st.form_submit_button("Zapisz"):
                     if nowy:
                         new_row = pd.DataFrame([{"Produkt": nowy, "Stan": "Mamy", "Miejsce": miejsce}])
                         updated_df = pd.concat([df_spizarnia, new_row], ignore_index=True)
                         conn.update(worksheet="Spizarnia", data=updated_df)
                         refresh_all()
+
+        st.divider()
+        
+        # Lista produktów w danym miejscu
+        produkty = df_spizarnia[df_spizarnia['Miejsce'] == miejsce]
+        for index, row in produkty.iterrows():
+            ikona = "🟢" if row['Stan'] == "Mamy" else "🔴"
+            if st.button(f"{ikona} {row['Produkt']}", key=f"s_{index}", use_container_width=True):
+                df_spizarnia.at[index, 'Stan'] = "Brak" if row['Stan'] == "Mamy" else "Mamy"
+                conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                refresh_all()
 
         st.divider()
         produkty = df_spizarnia[df_spizarnia['Miejsce'] == miejsce]
@@ -146,3 +172,4 @@ elif st.session_state.page == "Dania":
                             
                             conn.update(worksheet="Spizarnia", data=df_spizarnia)
                             refresh_all()
+
