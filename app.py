@@ -56,36 +56,28 @@ if page == "Spizarnia":
     except Exception as e:
         st.error(f"Problem z tabelą: {e}")
 elif page == "Lista Zakupow":
-    st.title("🛒 Lista Zakupow")
-    st.write("Rzeczy, których brakuje w Twojej spizarni:")
+    st.title("🛒 Lista")
 
     try:
-        # Pobieramy dane ze spizarni
         df = conn.read(worksheet="Spizarnia")
-        
-        # Filtrujemy tylko te, których stan to "Brak"
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
             for index, row in braki.iterrows():
-                col1, col2, col3 = st.columns([2, 1, 1])
+                # Tworzymy dwie kolumny: szeroką na tekst i bardzo wąską na przycisk
+                col_txt, col_btn = st.columns([4, 1])
                 
-                # Wyswietlamy nazwe i kategorie
-                col1.write(f"🔴 **{row['Produkt']}**")
-                col2.write(f"_{row['Kategoria']}_")
+                # Tekst w jednej linii: Kropka + Nazwa (Kategoria)
+                col_txt.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_index=True)
                 
-                # Przycisk "Kupione" - zmienia stan z powrotem na "Mamy"
-                if col3.button("Kupione! ✅", key=f"shop_{index}"):
-                    # Zmieniamy stan w tabeli głównej
+                # Mały przycisk obok
+                if col_btn.button("✅", key=f"shop_{index}"):
                     df.at[index, 'Stan'] = "Mamy"
-                    # Aktualizujemy Arkusz Google
                     conn.update(worksheet="Spizarnia", data=df)
-                    # Czyscimy cache i odswiezamy widok
                     st.cache_data.clear()
-                    st.success(f"Wróciło do spizarni: {row['Produkt']}")
                     st.rerun()
         else:
-            st.success("Twoja lista zakupów jest pusta! Masz wszystko, czego potrzebujesz. 🎉")
+            st.success("Lodówka pełna! 🎉")
             
     except Exception as e:
-        st.error(f"Problem z pobraniem listy zakupów: {e}")
+        st.error(f"Błąd: {e}")
