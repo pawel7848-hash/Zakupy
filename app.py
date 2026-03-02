@@ -2,20 +2,17 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-# 1. KONFIGURACJA (Musi być na samym początku)
+# 1. KONFIGURACJA
 st.set_page_config(page_title="Kuchnia 2.0", layout="centered")
 
-# Inicjalizacja stanów sesji (pamięć aplikacji)
 if 'page' not in st.session_state:
     st.session_state.page = "Menu"
 if 'wybrane_miejsce' not in st.session_state:
     st.session_state.wybrane_miejsce = None
 
-# POŁĄCZENIE
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# FUNKCJE POBIERANIA DANYCH (Zoptymalizowane cache)
-@st.cache_data(ttl=10) # Dane żyją 10 sekund, potem są odświeżane
+@st.cache_data(ttl=5)
 def get_data(sheet_name):
     data = conn.read(worksheet=sheet_name)
     data.columns = data.columns.str.strip()
@@ -25,14 +22,17 @@ def refresh_all():
     st.cache_data.clear()
     st.rerun()
 
-# POBIERAMY DANE
+# POBIERANIE DANYCH
 df_spizarnia = get_data("Spizarnia")
 try:
     df_dania = get_data("Dania")
 except:
     df_dania = pd.DataFrame(columns=["Nazwa", "Skladniki"])
+try:
+    df_plan = get_data("Plan")
+except:
+    df_plan = pd.DataFrame(columns=["Dzien", "Danie"])
 
-# --- NAWIGACJA ---
 def zmien_strone(nazwa):
     st.session_state.page = nazwa
     st.session_state.wybrane_miejsce = None
@@ -45,16 +45,15 @@ if st.session_state.page == "Menu":
     if st.button("🛒 LISTA ZAKUPÓW", use_container_width=True): zmien_strone("Lista")
     if st.button("📦 STAN SPIŻARNI", use_container_width=True): zmien_strone("Spizarnia")
     if st.button("🥘 DANIA OBIADOWE", use_container_width=True): zmien_strone("Dania")
+    if st.button("📅 PLAN POSIŁKÓW", use_container_width=True): zmien_strone("Plan")
 
 # --- SEKCJA 1: LISTA ZAKUPÓW ---
 elif st.session_state.page == "Lista":
     if st.button("⬅️ POWRÓT DO MENU", use_container_width=True): zmien_strone("Menu")
     st.title("🛒 DO KUPIENIA")
-    
     braki = df_spizarnia[df_spizarnia['Stan'] != "Mamy"]
     if not braki.empty:
         for index, row in braki.iterrows():
-            # Klucze z przedrostkiem 'k_' dla listy zakupów
             if st.button(f"🔴 {row['Produkt']} ({row.get('Miejsce', 'Brak')})", key=f"k_{index}_{row['Produkt']}", use_container_width=True):
                 df_spizarnia.at[index, 'Stan'] = "Mamy"
                 conn.update(worksheet="Spizarnia", data=df_spizarnia)
@@ -65,9 +64,7 @@ elif st.session_state.page == "Lista":
 # --- SEKCJA 2: STAN SPIŻARNI ---
 elif st.session_state.page == "Spizarnia":
     if st.session_state.wybrane_miejsce is None:
-        if st.button("🏠 POWRÓT DO MENU GŁÓWNEGO", use_container_width=True):
-            zmien_strone("Menu")
-            
+        if st.button("🏠 MENU GŁÓWNE", use_container_width=True): zmien_strone("Menu")
         st.title("📦 WYBIERZ MIEJSCE")
         miejsca = sorted(df_spizarnia['Miejsce'].fillna('Inne').unique())
         for m in miejsca:
@@ -75,22 +72,19 @@ elif st.session_state.page == "Spizarnia":
                 st.session_state.wybrane_miejsce = m
                 st.rerun()
     else:
-        # Przycisk powrotu prosto do menu i do miejsc
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("⬅️ DO MIEJSC", use_container_width=True):
+            if st.button("⬅️ MIEJSCA", use_container_width=True):
                 st.session_state.wybrane_miejsce = None
                 st.rerun()
         with col2:
-            if st.button("🏠 DO MENU", use_container_width=True):
-                zmien_strone("Menu")
+            if st.button("🏠 MENU", use_container_width=True): zmien_strone("Menu")
         
         miejsce = st.session_state.wybrane_miejsce
         st.header(f"📍 {miejsce.upper()}")
-
-        with st.expander("➕ Dodaj produkt tutaj"):
+        with st.expander("➕ Dodaj produkt"):
             with st.form("quick_add", clear_on_submit=True):
-                nowy = st.text_input("Nazwa produktu:")
+                nowy = st.text_input("Nazwa:")
                 if st.form_submit_button("Zapisz"):
                     if nowy:
                         new_row = pd.DataFrame([{"Produkt": nowy, "Stan": "Mamy", "Miejsce": miejsce}])
@@ -99,11 +93,9 @@ elif st.session_state.page == "Spizarnia":
                         refresh_all()
 
         st.divider()
-        
         produkty = df_spizarnia[df_spizarnia['Miejsce'] == miejsce]
         for index, row in produkty.iterrows():
             ikona = "🟢" if row['Stan'] == "Mamy" else "🔴"
-            # Klucze z przedrostkiem 's_' dla spiżarni
             if st.button(f"{ikona} {row['Produkt']}", key=f"s_{index}_{row['Produkt']}", use_container_width=True):
                 df_spizarnia.at[index, 'Stan'] = "Brak" if row['Stan'] == "Mamy" else "Mamy"
                 conn.update(worksheet="Spizarnia", data=df_spizarnia)
@@ -112,50 +104,76 @@ elif st.session_state.page == "Spizarnia":
 # --- SEKCJA 3: DANIA OBIADOWE ---
 elif st.session_state.page == "Dania":
     if st.button("⬅️ MENU", use_container_width=True): zmien_strone("Menu")
-    st.title("🥘 DANIA OBIADOWE")
-
-    tab1, tab2 = st.tabs(["Twoje Dania", "Dodaj Przepis"])
-
-    with tab2:
+    st.title("🥘 PRZEPISY")
+    t1, t2 = st.tabs(["Twoje Dania", "Dodaj Przepis"])
+    with t2:
         with st.form("f_dania"):
-            n_dania = st.text_input("Nazwa (np. Schabowe):")
+            n_dania = st.text_input("Nazwa:")
             skl = st.text_area("Składniki (po przecinku):")
             if st.form_submit_button("Zapisz"):
-                if n_dania and skl:
-                    new_d = pd.DataFrame([{"Nazwa": n_dania, "Skladniki": skl}])
-                    df_dania = pd.concat([df_dania, new_d], ignore_index=True)
-                    conn.update(worksheet="Dania", data=df_dania)
-                    refresh_all()
+                new_d = pd.DataFrame([{"Nazwa": n_dania, "Skladniki": skl}])
+                df_dania = pd.concat([df_dania, new_d], ignore_index=True)
+                conn.update(worksheet="Dania", data=df_dania)
+                refresh_all()
+    with t1:
+        for idx, d in df_dania.iterrows():
+            with st.expander(f"🍴 {str(d['Nazwa']).upper()}"):
+                st.write(d['Skladniki'])
 
-    with tab1:
-        if not df_dania.empty:
-            for idx, d in df_dania.iterrows():
-                with st.expander(f"🍴 {str(d['Nazwa']).upper()}"):
-                    skladniki = [s.strip() for s in str(d['Skladniki']).split(',')]
-                    st.write(", ".join(skladniki))
-                    
-                    if st.button(f"Sprawdź braki", key=f"ch_{idx}_{d['Nazwa']}", use_container_width=True):
-                        braki = []
-                        for s in skladniki:
-                            ma_na_stanie = df_spizarnia[(df_spizarnia['Produkt'].str.contains(s, case=False, na=False)) & (df_spizarnia['Stan'] == "Mamy")]
-                            if ma_na_stanie.empty:
-                                braki.append(s)
-                        
-                        if not braki:
-                            st.success("Wszystko jest! Gotuj śmiało.")
-                        else:
-                            st.warning("Brakuje: " + ", ".join(braki))
-                            if st.button("Dodaj braki do listy", key=f"add_br_{idx}_{d['Nazwa']}", use_container_width=True):
-                                for b in braki:
-                                    # Szukamy czy produkt już istnieje w spizarni
-                                    istniejacy = df_spizarnia[df_spizarnia['Produkt'].str.contains(b, case=False, na=False)]
-                                    if istniejacy.empty:
-                                        nowy_b = pd.DataFrame([{"Produkt": b, "Stan": "Brak", "Miejsce": "Inne"}])
-                                        df_spizarnia = pd.concat([df_spizarnia, nowy_b], ignore_index=True)
-                                    else:
-                                        df_spizarnia.loc[df_spizarnia['Produkt'].str.contains(b, case=False, na=False), 'Stan'] = "Brak"
-                                
-                                conn.update(worksheet="Spizarnia", data=df_spizarnia)
-                                refresh_all()
-        else:
-            st.info("Nie masz jeszcze żadnych przepisów.")
+# --- SEKCJA 4: PLAN POSIŁKÓW ---
+elif st.session_state.page == "Plan":
+    if st.button("⬅️ MENU", use_container_width=True): zmien_strone("Menu")
+    st.title("📅 PLAN TYGODNIOWY")
+    
+    dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
+    
+    with st.expander("➕ DODAJ POSIŁEK DO PLANU"):
+        with st.form("form_plan"):
+            wybrany_dzien = st.selectbox("Dzień:", dni)
+            wybrane_danie_nazwa = st.selectbox("Danie:", df_dania['Nazwa'].unique())
+            if st.form_submit_button("Dodaj do planu i sprawdź braki"):
+                # 1. Zapisz do planu
+                nowy_plan = pd.DataFrame([{"Dzien": wybrany_dzien, "Danie": wybrane_danie_nazwa}])
+                df_plan = pd.concat([df_plan, nowy_plan], ignore_index=True)
+                conn.update(worksheet="Plan", data=df_plan)
+                
+                # 2. Logika braków
+                przepis = df_dania[df_dania['Nazwa'] == wybrane_danie_nazwa].iloc[0]
+                skladniki = [s.strip() for s in przepis['Skladniki'].split(',')]
+                
+                for s in skladniki:
+                    istniejacy = df_spizarnia[df_spizarnia['Produkt'].str.contains(s, case=False, na=False)]
+                    if istniejacy.empty:
+                        # Dodaj jako nowy produkt (brak)
+                        nowy_p = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
+                        df_spizarnia = pd.concat([df_spizarnia, nowy_p], ignore_index=True)
+                    else:
+                        # Jeśli mamy go, ale w stanie Brak, to zostaje. Jeśli Mamy, to nie ruszamy.
+                        # Ale jeśli planujemy posiłek, a czegoś nie ma - stan musi być Brak
+                        if (istniejacy['Stan'] != "Mamy").all():
+                            df_spizarnia.loc[df_spizarnia['Produkt'].str.contains(s, case=False, na=False), 'Stan'] = "Brak"
+                
+                conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                st.success(f"Dodano {wybrane_danie_nazwa} do planu na {wybrany_dzien}. Braki trafiły na listę!")
+                refresh_all()
+
+    st.divider()
+    
+    # Wyświetlanie kalendarza
+    for d in dni:
+        posilki_dnia = df_plan[df_plan['Dzien'] == d]
+        if not posilki_dnia.empty:
+            st.subheader(f"🗓️ {d}")
+            for idx, p in posilki_dnia.iterrows():
+                col_p, col_del = st.columns([4, 1])
+                col_p.write(f"🍴 {p['Danie']}")
+                if col_del.button("❌", key=f"del_{idx}"):
+                    df_plan = df_plan.drop(idx)
+                    conn.update(worksheet="Plan", data=df_plan)
+                    refresh_all()
+            st.write("---")
+
+    if st.button("🗑️ WYCZYŚĆ CAŁY PLAN", use_container_width=True):
+        df_plan = pd.DataFrame(columns=["Dzien", "Danie"])
+        conn.update(worksheet="Plan", data=df_plan)
+        refresh_all()
