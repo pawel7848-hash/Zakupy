@@ -1,8 +1,3 @@
-Rozumiem, błędy z wcięciami w Pythonie potrafią być irytujące. Poprawiłem kod, deklarując global df_inne na samym początku funkcji kafelek_terminu, co eliminuje błąd SyntaxError, o którym wspomniałeś.
-
-Oto cały, gotowy kod. Skopiuj go w całości i zastąp nim wszystko w swoim pliku app.py:
-
-Python
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -209,3 +204,4 @@ elif st.session_state.page == "Auto":
     kafelek_terminu("📄 Ubezpieczenie", "Auto", "Ubezpieczenie")
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
+
