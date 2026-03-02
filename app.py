@@ -32,21 +32,18 @@ if page == "Spizarnia":
         for index, row in df.iterrows():
             col1, col2, col3 = st.columns([2, 1, 1])
             
-            # Sprawdzamy stan i dobieramy kolor/ikonę
             if row['Stan'] == "Mamy":
-                status_icon = "🟢" # Zielona kropka
+                status_icon = "🟢"
                 button_label = "Brak! 🛒"
                 new_status = "Brak"
             else:
-                status_icon = "🔴" # Czerwona kropka
+                status_icon = "🔴"
                 button_label = "Kupione! ✅"
                 new_status = "Mamy"
 
-            # Wyświetlanie w rzędzie
             col1.write(f"{status_icon} **{row['Produkt']}**")
             col2.write(f"_{row['Kategoria']}_")
             
-            # Przycisk zmiany stanu
             if col3.button(button_label, key=f"btn_{index}"):
                 df.at[index, 'Stan'] = new_status
                 conn.update(worksheet="Spizarnia", data=df)
@@ -55,6 +52,7 @@ if page == "Spizarnia":
 
     except Exception as e:
         st.error(f"Problem z tabelą: {e}")
+
 elif page == "Lista Zakupow":
     st.title("🛒 Lista")
 
@@ -64,13 +62,10 @@ elif page == "Lista Zakupow":
 
         if not braki.empty:
             for index, row in braki.iterrows():
-                # Tworzymy dwie kolumny: szeroką na tekst i bardzo wąską na przycisk
                 col_txt, col_btn = st.columns([4, 1])
+                # Poprawione: unsafe_allow_html=True zamiast unsafe_allow_index
+                col_txt.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
                 
-                # Tekst w jednej linii: Kropka + Nazwa (Kategoria)
-                col_txt.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_index=True)
-                
-                # Mały przycisk obok
                 if col_btn.button("✅", key=f"shop_{index}"):
                     df.at[index, 'Stan'] = "Mamy"
                     conn.update(worksheet="Spizarnia", data=df)
@@ -81,3 +76,28 @@ elif page == "Lista Zakupow":
             
     except Exception as e:
         st.error(f"Błąd: {e}")
+
+elif page == "Obiady":
+    st.title("🍲 Co na obiad?")
+    try:
+        df_s = conn.read(worksheet="Spizarnia")
+        df_p = conn.read(worksheet="Przepisy")
+        
+        dania = df_p['Danie'].unique()
+        wybor = st.selectbox("Wybierz danie:", dania)
+        
+        if st.button("Sprawdz czy mam skladniki"):
+            potrzebne = df_p[df_p['Danie'] == wybor]['Skladnik'].tolist()
+            mamy = df_s[df_s['Stan'] == 'Mamy']['Produkt'].tolist()
+            
+            braki = [s for s in potrzebne if s not in mamy]
+            
+            if not braki:
+                st.success("Masz wszystkie składniki na to danie! Smacznego!")
+            else:
+                st.warning(f"Brakuje Ci: {', '.join(braki)}")
+                if st.button("Dodaj braki do listy zakupów"):
+                    # Logika dodawania braków (opcjonalnie do rozbudowy)
+                    st.info("Otwórz Spiżarnię i oznacz te produkty jako 'Brak'")
+    except:
+        st.error("Upewnij się, że masz zakładkę 'Przepisy' z kolumnami 'Danie' i 'Skladnik'")
