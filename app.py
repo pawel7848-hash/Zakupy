@@ -1,3 +1,8 @@
+Rozumiem, błędy z wcięciami w Pythonie potrafią być irytujące. Poprawiłem kod, deklarując global df_inne na samym początku funkcji kafelek_terminu, co eliminuje błąd SyntaxError, o którym wspomniałeś.
+
+Oto cały, gotowy kod. Skopiuj go w całości i zastąp nim wszystko w swoim pliku app.py:
+
+Python
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -43,6 +48,9 @@ def zmien_sekcje_kuchni(nazwa):
 
 # Funkcja do obsługi terminów (Auto/Pies) z kolorami
 def kafelek_terminu(label, kategoria, nazwa_klucza):
+    # Deklaracja global musi być na samym początku funkcji
+    global df_inne 
+    
     row = df_inne[(df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)]
     today = pd.Timestamp.now().date()
     
@@ -62,7 +70,6 @@ def kafelek_terminu(label, kategoria, nazwa_klucza):
         st.write(f"Zmień datę: {label}")
         nowa = st.date_input(f"Wybierz datę", value=data_terminu, key=f"d_{kategoria}_{nazwa_klucza}")
         if st.button(f"Zapisz", key=f"b_{kategoria}_{nazwa_klucza}"):
-            global df_inne
             mask = (df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)
             if not df_inne[mask].empty:
                 df_inne.loc[mask, 'Wartosc'] = str(nowa)
@@ -169,7 +176,6 @@ elif st.session_state.page == "Kuchnia":
             if not p_dnia.empty:
                 st.subheader(d)
                 for idx, p in p_dnia.iterrows():
-                    # Sprawdzanie kropki
                     d_inf = df_dania[df_dania['Nazwa'] == p['Danie']]
                     kropka = "🟢"
                     if not d_inf.empty:
