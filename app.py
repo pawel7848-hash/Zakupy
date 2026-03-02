@@ -204,4 +204,3 @@ elif st.session_state.page == "Auto":
     kafelek_terminu("📄 Ubezpieczenie", "Auto", "Ubezpieczenie")
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
-
