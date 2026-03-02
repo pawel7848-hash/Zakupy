@@ -77,27 +77,34 @@ elif page == "Lista Zakupow":
     except Exception as e:
         st.error(f"Błąd: {e}")
 
-elif page == "Obiady":
-    st.title("🍲 Co na obiad?")
+elif page == "Lista Zakupow":
+    st.title("🛒 Lista")
+
     try:
-        df_s = conn.read(worksheet="Spizarnia")
-        df_p = conn.read(worksheet="Przepisy")
-        
-        dania = df_p['Danie'].unique()
-        wybor = st.selectbox("Wybierz danie:", dania)
-        
-        if st.button("Sprawdz czy mam skladniki"):
-            potrzebne = df_p[df_p['Danie'] == wybor]['Skladnik'].tolist()
-            mamy = df_s[df_s['Stan'] == 'Mamy']['Produkt'].tolist()
+        df = conn.read(worksheet="Spizarnia")
+        braki = df[df['Stan'] != "Mamy"]
+
+        if not braki.empty:
+            for index, row in braki.iterrows():
+                # Tworzymy kontener, który trzyma wszystko w kupie
+                with st.container():
+                    col_txt, col_btn = st.columns([0.85, 0.15]) # Bardzo wąska kolumna na przycisk
+                    
+                    # Tekst z uciętą kategorią, żeby nie wypychał przycisku
+                    col_txt.markdown(
+                        f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", 
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Przycisk z unikalnym kluczem
+                    if col_btn.button("✅", key=f"shop_idx_{index}"):
+                        df.at[index, 'Stan'] = "Mamy"
+                        conn.update(worksheet="Spizarnia", data=df)
+                        st.cache_data.clear()
+                        st.rerun()
+                st.write("") # Mały odstęp między produktami
+        else:
+            st.success("Lodówka pełna! 🎉")
             
-            braki = [s for s in potrzebne if s not in mamy]
-            
-            if not braki:
-                st.success("Masz wszystkie składniki na to danie! Smacznego!")
-            else:
-                st.warning(f"Brakuje Ci: {', '.join(braki)}")
-                if st.button("Dodaj braki do listy zakupów"):
-                    # Logika dodawania braków (opcjonalnie do rozbudowy)
-                    st.info("Otwórz Spiżarnię i oznacz te produkty jako 'Brak'")
-    except:
-        st.error("Upewnij się, że masz zakładkę 'Przepisy' z kolumnami 'Danie' i 'Skladnik'")
+    except Exception as e:
+        st.error(f"Błąd: {e}")
