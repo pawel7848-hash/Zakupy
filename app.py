@@ -82,20 +82,19 @@ elif page == "Lista Zakupow":
 
     try:
         df = conn.read(worksheet="Spizarnia")
-        # Wybieramy tylko braki
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
-            st.write("Zaznacz, co kupiłeś:")
             for index, row in braki.iterrows():
-                # Używamy checkboxa zamiast przycisku - jest mniejszy i lżejszy
-                # Jeśli go klikniesz (zaznaczysz), od razu wykonuje się akcja
-                if st.checkbox(f"{row['Produkt']} ({row['Kategoria']})", key=f"chk_{index}"):
-                    # Zmiana stanu w danych
+                # Łączymy ikonę, nazwę i kategorię w jeden krótki tekst
+                label = f"🔴 {row['Produkt']} ({row['Kategoria']})"
+                
+                # Kluczowy parametr: use_container_width=False sprawia, że przycisk 
+                # nie pcha się na całą szerokość i próbuje zostać w linii.
+                if st.button(f"✅ {label}", key=f"lp_{index}", use_container_width=False):
                     df.at[index, 'Stan'] = "Mamy"
                     conn.update(worksheet="Spizarnia", data=df)
                     st.cache_data.clear()
-                    st.success(f"Kupiono: {row['Produkt']}!")
                     st.rerun()
         else:
             st.success("Wszystko kupione! 🎉")
