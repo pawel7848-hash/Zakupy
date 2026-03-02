@@ -13,7 +13,7 @@ if 'produkty_baza' not in st.session_state:
         "Mleko": True,
         "Jajka": True,
         "Sól": True,
-        "bagietka" True
+        "bagietka": True
     }
 
 if 'zakupy' not in st.session_state:
@@ -94,4 +94,5 @@ elif zakladka == "🍲 Dania Obiadowe":
             if braki:
                 st.error(f"Brakuje Ci: {', '.join(braki)}. Dodano do koszyka!")
             else:
+
                 st.success("Wszystkie składniki masz w domu!")
