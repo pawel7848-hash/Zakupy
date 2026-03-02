@@ -85,17 +85,24 @@ elif page == "Lista Zakupow":
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
-            for index, row in braki.iterrows():
-                # Łączymy ikonę, nazwę i kategorię w jeden krótki tekst
-                label = f"🔴 {row['Produkt']} ({row['Kategoria']})"
+            # Tworzymy listę wyboru (Selectbox), która zajmuje tylko JEDNĄ linię na telefonie
+            # Wybierasz produkt z listy i klikasz JEDEN przycisk pod spodem, żeby go "odznaczyć"
+            wybrany = st.selectbox("Wybierz co kupiłeś:", braki['Produkt'].tolist())
+            
+            if st.button(f"Zatwierdź: {wybrany}", use_container_width=True):
+                # Szukamy indeksu wybranego produktu
+                idx = df[df['Produkt'] == wybrany].index[0]
+                df.at[idx, 'Stan'] = "Mamy"
+                conn.update(worksheet="Spizarnia", data=df)
+                st.cache_data.clear()
+                st.rerun()
+
+            st.write("---")
+            st.write("**Pozostało do kupienia:**")
+            # Wyświetlamy resztę jako zwykły tekst (bardzo ciasno)
+            for _, row in braki.iterrows():
+                st.markdown(f"🔴 {row['Produkt']} <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
                 
-                # Kluczowy parametr: use_container_width=False sprawia, że przycisk 
-                # nie pcha się na całą szerokość i próbuje zostać w linii.
-                if st.button(f"✅ {label}", key=f"lp_{index}", use_container_width=False):
-                    df.at[index, 'Stan'] = "Mamy"
-                    conn.update(worksheet="Spizarnia", data=df)
-                    st.cache_data.clear()
-                    st.rerun()
         else:
             st.success("Wszystko kupione! 🎉")
             
