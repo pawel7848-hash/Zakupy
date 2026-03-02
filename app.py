@@ -78,7 +78,8 @@ elif page == "Lista Zakupow":
         st.error(f"Błąd: {e}")
 
 elif page == "Lista Zakupow":
-    st.title("🛒 TWOJA LISTA")
+    st.title("🛒 LISTA V4")
+    st.info("KLIKNIJ W NAZWĘ, ŻEBY OZNACZYĆ JAKO KUPIONE") # Test: Jeśli tego nie widzisz, kod się nie odświeżył!
 
     try:
         df = conn.read(worksheet="Spizarnia")
@@ -86,12 +87,13 @@ elif page == "Lista Zakupow":
 
         if not braki.empty:
             for index, row in braki.iterrows():
-                # Tworzymy JEDEN przycisk na całą szerokość. 
-                # Napis JEST treścią przycisku.
-                # Nie ma tu col1, col2, ani żadnych innych bajerów.
-                etykieta = f"{row['Produkt']} — {row['Kategoria']}"
+                # TUTAJ JEST SEDNO: 
+                # Nazwa produktu jest wewnątrz st.button. 
+                # Nie używamy st.write ani st.markdown przed tym!
+                etykieta = f"🔴 {row['Produkt']} — {row['Kategoria']}"
                 
-                if st.button(f"🔴 {etykieta}", key=f"btn_{index}", use_container_width=True):
+                # key musi być unikalny, zmieniam go na "v4", żeby Streamlit stworzył nowe przyciski
+                if st.button(etykieta, key=f"v4_btn_{index}", use_container_width=True):
                     df.at[index, 'Stan'] = "Mamy"
                     conn.update(worksheet="Spizarnia", data=df)
                     st.cache_data.clear()
@@ -101,4 +103,5 @@ elif page == "Lista Zakupow":
             
     except Exception as e:
         st.error(f"Błąd: {e}")
+
 
