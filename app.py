@@ -204,8 +204,15 @@ elif st.session_state.page == "Pies":
 elif st.session_state.page == "Auto":
     if st.button("⬅️ MENU DOM", use_container_width=True): wroc_do_domu()
     st.title("🚗 AUTO")
-    kafelek_terminu("🛠️ Przegląd", "Auto", "Przegląd")
-    kafelek_terminu("📄 Ubezpieczenie", "Auto", "Ubezpieczenie")
+    
+    # Tworzymy dwie kolumny
+    col_przeglad, col_oc = st.columns(2)
+    
+    with col_przeglad:
+        kafelek_terminu("🛠️ Przegląd", "Auto", "Przegląd")
+        
+    with col_oc:
+        kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
+    
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
-
