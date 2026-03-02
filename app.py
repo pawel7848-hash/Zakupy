@@ -33,9 +33,13 @@ if zakladka == "📦 Spiżarnia":
     st.header("📦 Stan Spiżarni")
     
     # Tu tworzymy zakładki na górze strony
-    tab_jedzenie, tab_chemia, tab_dodaj = st.tabs(["🍎 Szafka nad zlewem", "🧼 Chemia", "➕ Dodaj Nowy"])
+    tab_szafka1, tab_szafka2, tab_lodówka, tab_dodaj = st.tabs([
+        "🍎 Szafka nad zlewem",
+        "🧼 Szafka na prawo od zlewu", 
+        "Lodówka",  
+        "➕ Dodaj Nowy"])
 
-    with tab_jedzenie:
+    with tab_szafka1:
         # Tutaj wpisz nazwy rzeczy, które mają być w tej zakładce
         produkty_jedzenie = ["Chleb", "Masło", "Mleko", "Jajka", "Sól", "bagietka", "pieprz"]
         for p in sorted(produkty_jedzenie):
@@ -46,10 +50,20 @@ if zakladka == "📦 Spiżarnia":
                     aktualizuj_koszyk()
                     st.rerun()
 
-    with tab_chemia:
+    with tab_szafka2:
         # Tutaj wpisz nazwy rzeczy z chemii
-        produkty_chemia = ["Papier toaletowy", "Mydło"]
-        for p in sorted(produkty_chemia):
+        produkty_szafka2 = ["Papier toaletowy", "Mydło"]
+        for p in sorted(produkty_szafka2):
+            if p in st.session_state.produkty_baza:
+                stan = st.toggle(f"{p}", value=st.session_state.produkty_baza[p], key=f"spiz_{p}")
+                if stan != st.session_state.produkty_baza[p]:
+                    st.session_state.produkty_baza[p] = stan
+                    aktualizuj_koszyk()
+                    st.rerun()
+    with tab_lodówka:
+        # Tutaj wpisz nazwy rzeczy z chemii
+        produkty_lodówka = ["Masło", "Ser"]
+        for p in sorted(produkty_lodówka):
             if p in st.session_state.produkty_baza:
                 stan = st.toggle(f"{p}", value=st.session_state.produkty_baza[p], key=f"spiz_{p}")
                 if stan != st.session_state.produkty_baza[p]:
@@ -101,4 +115,3 @@ elif zakladka == "🍲 Dania Obiadowe":
                 st.error(f"Dodano do koszyka: {', '.join(braki)}")
             else:
                 st.success("Masz wszystko na ten obiad!")
-
