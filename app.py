@@ -1,28 +1,55 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 
-# Ustawienia wyglądu strony
-st.set_page_config(page_title="Moja Spiżarnia", layout="centered")
+st.set_page_config(page_title="Moja Inteligentna Spizarnia", layout="wide")
 
-st.title("🛒 Moja Spiżarnia (Live)")
-
-# 1. Połączenie z Twoim Arkuszem Google
-# Wykorzystuje dane, które wkleiłeś w Secrets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 2. Pobranie danych z Arkusza
-# ttl="1m" oznacza, że aplikacja będzie sprawdzać zmiany w arkuszu co 1 minutę
-df = conn.read(ttl="1m")
+page = st.sidebar.radio("Wybierz sekcje:", ["Spizarnia", "Lista Zakupow", "Obiady"])
 
-# 3. Wyświetlanie produktów
-if not df.empty:
-    st.subheader("Lista produktów:")
-    for index, row in df.iterrows():
-        # Tworzy checkbox dla każdego produktu z kolumny "Produkt"
-        # Zaznacza go, jeśli w kolumnie "Czy_jest" wpisałeś TRUE
-        st.checkbox(row['Produkt'], value=bool(row['Czy_jest']), key=f"prod_{index}")
-else:
-    st.warning("Twój arkusz jest pusty lub nie ma nagłówków 'Produkt' i 'Czy_jest'!")
+if page == "Spizarnia":
+    st.title("Twoja Spizarnia")
+    try:
+        df = conn.read(worksheet="Spizarnia")
+        for index, row in df.iterrows():
+            col1, col2, col3 = st.columns([2, 1, 1])
+            col1.write(row['Produkt'])
+            col2.write(row['Kategoria'])
+            if row['Stan'] == "Mamy":
+                col3.success("Jest")
+            else:
+                col3.error("Brak")
+    except Exception as e:
+        st.error("Blad: Sprawdz czy zakladka nazywa sie Spizarnia")
 
-st.write("---")
-st.caption("Dane pobierane prosto z Google Sheets 🚀")
+elif page == "Obiady":
+    st.title("Co na obiad?")
+    try:
+        df_s = conn.read(worksheet="Spizarnia")
+        df_p = conn.read(worksheet="Przepisy")
+        dania = df_p['Danie'].unique()
+        wybor = st.selectbox("Wybierz danie:", dania)
+        if st.button("Sprawdz skladniki"):
+            potrzebne = df_p[df_p['Danie'] == wybor]['Skladnik'].tolist()
+            mamy = df_s[df_s['Stan'] == 'Mamy']['Produkt'].tolist()
+            braki = [s for s in potrzebne if s not in mamy]
+            if not braki:
+                st.success("Masz wszystko!")
+            else:
+                st.warning(f"Brakuje: {', '.join(braki)}")
+    except:
+        st.error("Blad: Sprawdz zakladke Przepisy")
+
+elif page == "Lista Zakupow":
+    st.title("Lista Zakupow")
+    try:
+        df = conn.read(worksheet="Spizarnia")
+        braki = df[df['Stan'] != "Mamy"]['Produkt'].tolist()
+        if braki:
+            for b in braki:
+                st.write(f"- {b}")
+        else:
+            st.success("Wszystko masz!")
+    except:
+        st.write("Problem z danymi")
