@@ -128,52 +128,68 @@ elif st.session_state.page == "Plan":
     dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
     
     with st.expander("➕ DODAJ POSIŁEK DO PLANU"):
-        with st.form("form_plan"):
-            wybrany_dzien = st.selectbox("Dzień:", dni)
-            wybrane_danie_nazwa = st.selectbox("Danie:", df_dania['Nazwa'].unique())
-            if st.form_submit_button("Dodaj do planu i sprawdź braki"):
-                # 1. Zapisz do planu
-                nowy_plan = pd.DataFrame([{"Dzien": wybrany_dzien, "Danie": wybrane_danie_nazwa}])
-                df_plan = pd.concat([df_plan, nowy_plan], ignore_index=True)
-                conn.update(worksheet="Plan", data=df_plan)
-                
-                # 2. Logika braków
-                przepis = df_dania[df_dania['Nazwa'] == wybrane_danie_nazwa].iloc[0]
-                skladniki = [s.strip() for s in przepis['Skladniki'].split(',')]
-                
-                for s in skladniki:
-                    istniejacy = df_spizarnia[df_spizarnia['Produkt'].str.contains(s, case=False, na=False)]
-                    if istniejacy.empty:
-                        # Dodaj jako nowy produkt (brak)
-                        nowy_p = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
-                        df_spizarnia = pd.concat([df_spizarnia, nowy_p], ignore_index=True)
-                    else:
-                        # Jeśli mamy go, ale w stanie Brak, to zostaje. Jeśli Mamy, to nie ruszamy.
-                        # Ale jeśli planujemy posiłek, a czegoś nie ma - stan musi być Brak
-                        if (istniejacy['Stan'] != "Mamy").all():
-                            df_spizarnia.loc[df_spizarnia['Produkt'].str.contains(s, case=False, na=False), 'Stan'] = "Brak"
-                
-                conn.update(worksheet="Spizarnia", data=df_spizarnia)
-                st.success(f"Dodano {wybrane_danie_nazwa} do planu na {wybrany_dzien}. Braki trafiły na listę!")
-                refresh_all()
+        if df_dania.empty:
+            st.warning("Najpierw dodaj jakieś przepisy w sekcji 'Dania Obiadowe'!")
+        else:
+            with st.form("form_plan"):
+                wybrany_dzien = st.selectbox("Dzień:", dni)
+                wybrane_danie_nazwa = st.selectbox("Danie:", df_dania['Nazwa'].unique())
+                if st.form_submit_button("Dodaj do planu i sprawdź braki"):
+                    nowy_plan = pd.DataFrame([{"Dzien": wybrany_dzien, "Danie": wybrane_danie_nazwa}])
+                    df_plan = pd.concat([df_plan, nowy_plan], ignore_index=True)
+                    conn.update(worksheet="Plan", data=df_plan)
+                    
+                    przepis = df_dania[df_dania['Nazwa'] == wybrane_danie_nazwa].iloc[0]
+                    skladniki = [s.strip() for s in str(przepis['Skladniki']).split(',')]
+                    
+                    for s in skladniki:
+                        istniejacy = df_spizarnia[df_spizarnia['Produkt'].str.contains(s, case=False, na=False)]
+                        if istniejacy.empty:
+                            nowy_p = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
+                            df_spizarnia = pd.concat([df_spizarnia, nowy_p], ignore_index=True)
+                        else:
+                            # Jeśli planujemy, to upewniamy się, że braki są zaznaczone na liście zakupów
+                            if (istniejacy['Stan'] != "Mamy").all():
+                                df_spizarnia.loc[df_spizarnia['Produkt'].str.contains(s, case=False, na=False), 'Stan'] = "Brak"
+                    
+                    conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                    refresh_all()
 
     st.divider()
     
-    # Wyświetlanie kalendarza
+    # Wyświetlanie kalendarza z kropkami
     for d in dni:
         posilki_dnia = df_plan[df_plan['Dzien'] == d]
         if not posilki_dnia.empty:
             st.subheader(f"🗓️ {d}")
             for idx, p in posilki_dnia.iterrows():
+                # --- LOGIKA SPRAWDZANIA KROPKI ---
+                # Szukamy przepisu dla tego dania
+                danie_info = df_dania[df_dania['Nazwa'] == p['Danie']]
+                ikona_posilku = "⚪" # domyślna jeśli nie ma przepisu
+                
+                if not danie_info.empty:
+                    skladniki_posilku = [s.strip() for s in str(danie_info.iloc[0]['Skladniki']).split(',')]
+                    czy_kompletne = True
+                    for skladnik in skladniki_posilku:
+                        # Sprawdzamy czy mamy produkt w spizarni ze stanem "Mamy"
+                        ma_na_stanie = df_spizarnia[(df_spizarnia['Produkt'].str.contains(skladnik, case=False, na=False)) & (df_spizarnia['Stan'] == "Mamy")]
+                        if ma_na_stanie.empty:
+                            czy_kompletne = False
+                            break
+                    ikona_posilku = "🟢" if czy_kompletne else "🔴"
+                
+                # --- WYŚWIETLANIE ---
                 col_p, col_del = st.columns([4, 1])
-                col_p.write(f"🍴 {p['Danie']}")
-                if col_del.button("❌", key=f"del_{idx}"):
+                col_p.write(f"{ikona_posilku} {p['Danie']}")
+                if col_del.button("❌", key=f"del_plan_{idx}"):
                     df_plan = df_plan.drop(idx)
                     conn.update(worksheet="Plan", data=df_plan)
                     refresh_all()
             st.write("---")
 
-    if st.button("🗑️ WYCZYŚĆ CAŁY PLAN", use_container_width=True):
-        df_plan = pd.DataFrame(columns=["Dzien", "Danie"])
-        conn.update(worksheet="Plan", data=df_plan)
-        refresh_all()
+    if not df_plan.empty:
+        if st.button("🗑️ WYCZYŚĆ CAŁY PLAN", use_container_width=True):
+            df_plan = pd.DataFrame(columns=["Dzien", "Danie"])
+            conn.update(worksheet="Plan", data=df_plan)
+            refresh_all()
