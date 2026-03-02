@@ -10,6 +10,24 @@ page = st.sidebar.radio("Wybierz sekcje:", ["Spizarnia", "Lista Zakupow", "Obiad
 
 if page == "Spizarnia":
     st.title("Twoja Spizarnia")
+    # Sekcja dodawania nowego produktu
+    with st.expander("➕ Dodaj nowy produkt"):
+        nowy_produkt = st.text_input("Nazwa produktu")
+        nowa_kategoria = st.selectbox("Kategoria", ["Lodowka", "Zamrazarka", "Szafka", "Inne"])
+        
+        if st.button("Zapisz w spizarni"):
+            if nowy_produkt:
+                # Tworzymy nową linię danych
+                nowy_wiersz = pd.DataFrame([{"Produkt": nowy_produkt, "Kategoria": nowa_kategoria, "Stan": "Mamy"}])
+                # Pobieramy obecne dane i doklejamy nową linię
+                df_aktualny = conn.read(worksheet="Spizarnia")
+                df_nowy = pd.concat([df_aktualny, nowy_wiersz], ignore_index=True)
+                # Wysyłamy z powrotem do Google Sheets
+                conn.update(worksheet="Spizarnia", data=df_nowy)
+                st.success(f"Dodano {nowy_produkt}!")
+                st.cache_data.clear() # Czyścimy pamięć, żeby od razu było widać zmiany
+            else:
+                st.error("Wpisz nazwę produktu!")  
     try:
         df = conn.read(worksheet="Spizarnia")
         for index, row in df.iterrows():
