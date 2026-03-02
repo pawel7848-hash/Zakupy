@@ -82,21 +82,21 @@ elif page == "Lista Zakupow":
 
     try:
         df = conn.read(worksheet="Spizarnia")
+        # Wybieramy tylko braki
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
+            st.write("Zaznacz, co kupiłeś:")
             for index, row in braki.iterrows():
-                # Używamy kontenera z obramowaniem (border), żeby oddzielić produkty
-                with st.container(border=True):
-                    # Wyświetlamy tekst i przycisk w układzie "płaskim"
-                    # Usuwamy kolumny, dajemy wszystko w jednym ciągu
-                    st.write(f"🔴 **{row['Produkt']}** ({row['Kategoria']})")
-                    
-                    if st.button(f"Kupione ✅", key=f"lp_{index}", use_container_width=True):
-                        df.at[index, 'Stan'] = "Mamy"
-                        conn.update(worksheet="Spizarnia", data=df)
-                        st.cache_data.clear()
-                        st.rerun()
+                # Używamy checkboxa zamiast przycisku - jest mniejszy i lżejszy
+                # Jeśli go klikniesz (zaznaczysz), od razu wykonuje się akcja
+                if st.checkbox(f"{row['Produkt']} ({row['Kategoria']})", key=f"chk_{index}"):
+                    # Zmiana stanu w danych
+                    df.at[index, 'Stan'] = "Mamy"
+                    conn.update(worksheet="Spizarnia", data=df)
+                    st.cache_data.clear()
+                    st.success(f"Kupiono: {row['Produkt']}!")
+                    st.rerun()
         else:
             st.success("Wszystko kupione! 🎉")
             
