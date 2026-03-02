@@ -35,7 +35,7 @@ if page == "Spizarnia":
             # Sprawdzamy stan i dobieramy kolor/ikonę
             if row['Stan'] == "Mamy":
                 status_icon = "🟢" # Zielona kropka
-                button_label = "Zużyte! 🛒"
+                button_label = "Brak! 🛒"
                 new_status = "Brak"
             else:
                 status_icon = "🔴" # Czerwona kropka
@@ -55,33 +55,37 @@ if page == "Spizarnia":
 
     except Exception as e:
         st.error(f"Problem z tabelą: {e}")
-elif page == "Obiady":
-    st.title("Co na obiad?")
-    try:
-        df_s = conn.read(worksheet="Spizarnia")
-        df_p = conn.read(worksheet="Przepisy")
-        dania = df_p['Danie'].unique()
-        wybor = st.selectbox("Wybierz danie:", dania)
-        if st.button("Sprawdz skladniki"):
-            potrzebne = df_p[df_p['Danie'] == wybor]['Skladnik'].tolist()
-            mamy = df_s[df_s['Stan'] == 'Mamy']['Produkt'].tolist()
-            braki = [s for s in potrzebne if s not in mamy]
-            if not braki:
-                st.success("Masz wszystko!")
-            else:
-                st.warning(f"Brakuje: {', '.join(braki)}")
-    except:
-        st.error("Blad: Sprawdz zakladke Przepisy")
-
 elif page == "Lista Zakupow":
-    st.title("Lista Zakupow")
+    st.title("🛒 Lista Zakupow")
+    st.write("Rzeczy, których brakuje w Twojej spizarni:")
+
     try:
+        # Pobieramy dane ze spizarni
         df = conn.read(worksheet="Spizarnia")
-        braki = df[df['Stan'] != "Mamy"]['Produkt'].tolist()
-        if braki:
-            for b in braki:
-                st.write(f"- {b}")
+        
+        # Filtrujemy tylko te, których stan to "Brak"
+        braki = df[df['Stan'] != "Mamy"]
+
+        if not braki.empty:
+            for index, row in braki.iterrows():
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                # Wyswietlamy nazwe i kategorie
+                col1.write(f"🔴 **{row['Produkt']}**")
+                col2.write(f"_{row['Kategoria']}_")
+                
+                # Przycisk "Kupione" - zmienia stan z powrotem na "Mamy"
+                if col3.button("Kupione! ✅", key=f"shop_{index}"):
+                    # Zmieniamy stan w tabeli głównej
+                    df.at[index, 'Stan'] = "Mamy"
+                    # Aktualizujemy Arkusz Google
+                    conn.update(worksheet="Spizarnia", data=df)
+                    # Czyscimy cache i odswiezamy widok
+                    st.cache_data.clear()
+                    st.success(f"Wróciło do spizarni: {row['Produkt']}")
+                    st.rerun()
         else:
-            st.success("Wszystko masz!")
-    except:
-        st.write("Problem z danymi")
+            st.success("Twoja lista zakupów jest pusta! Masz wszystko, czego potrzebujesz. 🎉")
+            
+    except Exception as e:
+        st.error(f"Problem z pobraniem listy zakupów: {e}")
