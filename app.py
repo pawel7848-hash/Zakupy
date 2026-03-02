@@ -9,38 +9,52 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 page = st.sidebar.radio("Wybierz sekcje:", ["Spizarnia", "Lista Zakupow", "Obiady"])
 
 if page == "Spizarnia":
-    st.title("Twoja Spizarnia")
-    # Sekcja dodawania nowego produktu
+    st.title("📦 Twoja Spizarnia")
+
+    # 1. Formularz dodawania
     with st.expander("➕ Dodaj nowy produkt"):
-        nowy_produkt = st.text_input("Nazwa produktu")
-        nowa_kategoria = st.selectbox("Kategoria", ["Lodowka", "Zamrazarka", "Szafka", "Inne"])
-        
+        nowy_p = st.text_input("Nazwa produktu")
+        nowa_k = st.selectbox("Kategoria", ["Lodowka", "Zamrazarka", "Szafka", "Inne"])
         if st.button("Zapisz w spizarni"):
-            if nowy_produkt:
-                # Tworzymy nową linię danych
-                nowy_wiersz = pd.DataFrame([{"Produkt": nowy_produkt, "Kategoria": nowa_kategoria, "Stan": "Mamy"}])
-                # Pobieramy obecne dane i doklejamy nową linię
-                df_aktualny = conn.read(worksheet="Spizarnia")
-                df_nowy = pd.concat([df_aktualny, nowy_wiersz], ignore_index=True)
-                # Wysyłamy z powrotem do Google Sheets
+            if nowy_p:
+                df_akt = conn.read(worksheet="Spizarnia")
+                nowy_w = pd.DataFrame([{"Produkt": nowy_p, "Kategoria": nowa_k, "Stan": "Mamy"}])
+                df_nowy = pd.concat([df_akt, nowy_w], ignore_index=True)
                 conn.update(worksheet="Spizarnia", data=df_nowy)
-                st.success(f"Dodano {nowy_produkt}!")
-                st.cache_data.clear() # Czyścimy pamięć, żeby od razu było widać zmiany
-            else:
-                st.error("Wpisz nazwę produktu!")  
+                st.cache_data.clear()
+                st.rerun()
+
+    st.write("---")
+
     try:
         df = conn.read(worksheet="Spizarnia")
+        
         for index, row in df.iterrows():
             col1, col2, col3 = st.columns([2, 1, 1])
-            col1.write(row['Produkt'])
-            col2.write(row['Kategoria'])
+            
+            # Sprawdzamy stan i dobieramy kolor/ikonę
             if row['Stan'] == "Mamy":
-                col3.success("Jest")
+                status_icon = "🟢" # Zielona kropka
+                button_label = "Zużyte! 🛒"
+                new_status = "Brak"
             else:
-                col3.error("Brak")
-    except Exception as e:
-        st.error("Blad: Sprawdz czy zakladka nazywa sie Spizarnia")
+                status_icon = "🔴" # Czerwona kropka
+                button_label = "Kupione! ✅"
+                new_status = "Mamy"
 
+            # Wyświetlanie w rzędzie
+            col1.write(f"{status_icon} **{row['Produkt']}**")
+            col2.write(f"_{row['Kategoria']}_")
+            
+            # Przycisk zmiany stanu
+            if col3.button(button_label, key=f"btn_{index}"):
+                df.at[index, 'Stan'] = new_status
+                conn.update(worksheet="Spizarnia", data=df)
+                st.cache_data.clear()
+                st.rerun()
+
+    except Exception as e:
+        st.error(f"Problem z tabelą: {e}")
 elif page == "Obiady":
     st.title("Co na obiad?")
     try:
