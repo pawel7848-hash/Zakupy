@@ -135,30 +135,60 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ WRÓĆ DO DOMU", use_container_width=True): wroc_do_domu()
     st.title("🚗 STREFA AUTO")
     
-    # Pobieranie danych z tabeli 'Inne'
+    # Pobieranie danych
     row_przeglad = df_inne[(df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == 'Przegląd')]
     row_oc = df_inne[(df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == 'Ubezpieczenie')]
     
-    data_przeglad = row_przeglad.iloc[0]['Wartosc'] if not row_przeglad.empty else "Brak danych"
-    data_oc = row_oc.iloc[0]['Wartosc'] if not row_oc.empty else "Brak danych"
+    # Konwersja dat (pobieramy dzisiejszą datę)
+    today = pd.Timestamp.now().date()
 
-    # Wyświetlanie alertów
-    st.warning(f"🛠️ Przegląd techniczny do: **{data_przeglad}**")
-    st.error(f"📄 Ubezpieczenie OC do: **{data_oc}**")
+    def wyswietl_termin(label, row_data, kategoria, nazwa_klucza):
+        if not row_data.empty:
+            data_str = row_data.iloc[0]['Wartosc']
+            try:
+                data_terminu = pd.to_datetime(data_str).date()
+                # LOGIKA KOLORÓW: Jeśli data jest w przyszłości = Zielony, jeśli przeszła = Czerwony
+                if data_terminu >= today:
+                    color = "green"
+                    status = "AKTUALNE"
+                else:
+                    color = "red"
+                    status = "PO TERMINIE!"
+            except:
+                data_terminu = today
+                color = "gray"
+                status = "BŁĄD DATY"
+        else:
+            data_terminu = today
+            color = "gray"
+            status = "BRAK DANYCH"
+
+        # Klikalny kafelek (Popover)
+        with st.popover(f":{color}[{label}: {data_terminu}] \n\n {status}", use_container_width=True):
+            st.write(f"Zmień datę dla: {label}")
+            nowa = st.date_input(f"Wybierz nową datę ({label})", value=data_terminu, key=f"date_{nazwa_klucza}")
+            if st.button(f"Zapisz {label}", key=f"btn_{nazwa_klucza}"):
+                mask = (df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)
+                if not df_inne[mask].empty:
+                    df_inne.loc[mask, 'Wartosc'] = str(nowa)
+                else:
+                    new_row = pd.DataFrame([{"Kategoria": kategoria, "Nazwa": nazwa_klucza, "Wartosc": str(nowa)}])
+                    df_inne = pd.concat([df_inne, new_row], ignore_index=True)
+                
+                conn.update(worksheet="Inne", data=df_inne)
+                st.success("Zapisano!")
+                refresh_all()
+
+    # Wyświetlenie sekcji
+    st.subheader("📅 Terminy i ubezpieczenie")
+    st.write("Kliknij w termin, aby go zmienić:")
     
+    wyswietl_termin("🛠️ Przegląd", row_przeglad, "Auto", "Przegląd")
+    wyswietl_termin("📄 Ubezpieczenie OC", row_oc, "Auto", "Ubezpieczenie")
+
     st.divider()
-    with st.expander("⚙️ Ustawienia terminów auta"):
-        typ = st.selectbox("Co chcesz zmienić?", ["Przegląd", "Ubezpieczenie"])
-        nowa_data_auto = st.date_input("Wybierz nową datę:", format="YYYY-MM-DD")
-        
-        if st.button("Zapisz nową datę"):
-            mask = (df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == typ)
-            if not df_inne[mask].empty:
-                df_inne.loc[mask, 'Wartosc'] = str(nowa_data_auto)
-            else:
-                new_row = pd.DataFrame([{"Kategoria": "Auto", "Nazwa": typ, "Wartosc": str(nowa_data_auto)}])
-                df_inne = pd.concat([df_inne, new_row], ignore_index=True)
-            
+    st.metric("⛽ Paliwo", "75%") # Tu w przyszłości możemy dodać logikę tankowania
             conn.update(worksheet="Inne", data=df_inne)
             st.success(f"Zaktualizowano {typ}!")
             refresh_all()
+
