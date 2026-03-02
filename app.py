@@ -1,107 +1,32 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
-import pandas as pd
 
-st.set_page_config(page_title="Moja Inteligentna Spizarnia", layout="wide")
+# Konfiguracja strony
+st.set_page_config(page_title="Lista", layout="centered")
 
+# Połączenie
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-page = st.sidebar.radio("Wybierz sekcje:", ["Spizarnia", "Lista Zakupow", "Obiady"])
+st.title("MOJA NOWA LISTA")
 
-if page == "Spizarnia":
-    st.title("📦 Twoja Spizarnia")
+try:
+    df = conn.read(worksheet="Spizarnia")
+    # Filtrujemy tylko to, czego nie ma
+    braki = df[df['Stan'] != "Mamy"]
 
-    # 1. Formularz dodawania
-    with st.expander("➕ Dodaj nowy produkt"):
-        nowy_p = st.text_input("Nazwa produktu")
-        nowa_k = st.selectbox("Kategoria", ["Lodowka", "Zamrazarka", "Szafka", "Inne"])
-        if st.button("Zapisz w spizarni"):
-            if nowy_p:
-                df_akt = conn.read(worksheet="Spizarnia")
-                nowy_w = pd.DataFrame([{"Produkt": nowy_p, "Kategoria": nowa_k, "Stan": "Mamy"}])
-                df_nowy = pd.concat([df_akt, nowy_w], ignore_index=True)
-                conn.update(worksheet="Spizarnia", data=df_nowy)
-                st.cache_data.clear()
-                st.rerun()
-
-    st.write("---")
-
-    try:
-        df = conn.read(worksheet="Spizarnia")
-        
-        for index, row in df.iterrows():
-            col1, col2, col3 = st.columns([2, 1, 1])
+    if not braki.empty:
+        for index, row in braki.iterrows():
+            # TU JEST CAŁY TRYK:
+            # Nazwa produktu jest etykietą przycisku (label).
+            # Nie używamy st.write ani nic innego!
+            etykieta = f"🛒 {row['Produkt']} ({row['Kategoria']})"
             
-            if row['Stan'] == "Mamy":
-                status_icon = "🟢"
-                button_label = "Brak! 🛒"
-                new_status = "Brak"
-            else:
-                status_icon = "🔴"
-                button_label = "Kupione! ✅"
-                new_status = "Mamy"
-
-            col1.write(f"{status_icon} **{row['Produkt']}**")
-            col2.write(f"_{row['Kategoria']}_")
-            
-            if col3.button(button_label, key=f"btn_{index}"):
-                df.at[index, 'Stan'] = new_status
+            if st.button(etykieta, key=f"btn_{index}", use_container_width=True):
+                df.at[index, 'Stan'] = "Mamy"
                 conn.update(worksheet="Spizarnia", data=df)
                 st.cache_data.clear()
                 st.rerun()
-
-    except Exception as e:
-        st.error(f"Problem z tabelą: {e}")
-
-elif page == "Lista Zakupow":
-    st.title("🛒 Lista")
-
-    try:
-        df = conn.read(worksheet="Spizarnia")
-        braki = df[df['Stan'] != "Mamy"]
-
-        if not braki.empty:
-            for index, row in braki.iterrows():
-                col_txt, col_btn = st.columns([4, 1])
-                # Poprawione: unsafe_allow_html=True zamiast unsafe_allow_index
-                col_txt.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
-                
-                if col_btn.button("✅", key=f"shop_{index}"):
-                    df.at[index, 'Stan'] = "Mamy"
-                    conn.update(worksheet="Spizarnia", data=df)
-                    st.cache_data.clear()
-                    st.rerun()
-        else:
-            st.success("Lodówka pełna! 🎉")
-            
-    except Exception as e:
-        st.error(f"Błąd: {e}")
-
-elif page == "Lista Zakupow":
-    st.title("🛒 LISTA V4")
-    st.info("KLIKNIJ W NAZWĘ, ŻEBY OZNACZYĆ JAKO KUPIONE") # Test: Jeśli tego nie widzisz, kod się nie odświeżył!
-
-    try:
-        df = conn.read(worksheet="Spizarnia")
-        braki = df[df['Stan'] != "Mamy"]
-
-        if not braki.empty:
-            for index, row in braki.iterrows():
-                # TUTAJ JEST SEDNO: 
-                # Nazwa produktu jest wewnątrz st.button. 
-                # Nie używamy st.write ani st.markdown przed tym!
-                etykieta = f"🔴 {row['Produkt']} — {row['Kategoria']}"
-                
-                # key musi być unikalny, zmieniam go na "v4", żeby Streamlit stworzył nowe przyciski
-                if st.button(etykieta, key=f"v4_btn_{index}", use_container_width=True):
-                    df.at[index, 'Stan'] = "Mamy"
-                    conn.update(worksheet="Spizarnia", data=df)
-                    st.cache_data.clear()
-                    st.rerun()
-        else:
-            st.success("Wszystko kupione! 🎉")
-            
-    except Exception as e:
-        st.error(f"Błąd: {e}")
-
-
+    else:
+        st.success("Wszystko kupione! 🎉")
+except Exception as e:
+    st.error(f"Błąd: {e}")
