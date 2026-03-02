@@ -78,52 +78,39 @@ elif page == "Lista Zakupow":
         st.error(f"Błąd: {e}")
 
 elif page == "Lista Zakupow":
-    st.title("🛒 Lista")
-
-    # MAGIA CSS: To fizycznie zmniejsza przyciski i usuwa marginesy
-    st.markdown("""
-        <style>
-        /* Zmniejszamy wysokość rzędu i usuwamy odstępy */
-        div[data-testid="stHorizontalBlock"] {
-            align-items: center !important;
-            gap: 0px !important;
-            margin-bottom: -15px !important;
-        }
-        /* Drastycznie zmniejszamy sam przycisk */
-        button[kind="secondary"] {
-            padding: 2px 10px !important;
-            height: auto !important;
-            min-height: 20px !important;
-            width: 40px !important;
-            margin: 0px !important;
-        }
-        /* Usuwamy paddingi kolumn */
-        div[data-testid="column"] {
-            padding: 0px !important;
-            flex: unset !important;
-            min-width: unset !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    st.title("🛒 Moja Lista")
 
     try:
         df = conn.read(worksheet="Spizarnia")
-        braki = df[df['Stan'] != "Mamy"]
-
-        if not braki.empty:
-            for index, row in braki.iterrows():
-                # Ustawiamy proporcje: 85% na tekst, 15% na guzik
-                c1, c2 = st.columns([0.85, 0.15])
-                
-                # Tekst w lewej kolumnie
-                c1.markdown(f"🔴 **{row['Produkt']}** <small>({row['Kategoria']})</small>", unsafe_allow_html=True)
-                
-                # Mały guzik w prawej kolumnie
-                if c2.button("✅", key=f"lp_{index}"):
-                    df.at[index, 'Stan'] = "Mamy"
+        # Pobieramy tylko te produkty, których brakuje
+        braki_df = df[df['Stan'] != "Mamy"]
+        
+        if not braki_df.empty:
+            # Tworzymy listę nazw do wyświetlenia
+            lista_nazw = braki_df['Produkt'].tolist()
+            
+            # MULTISELECT - to jest klucz. Możesz wybrać kilka rzeczy na raz.
+            wybrane = st.multiselect("Co już masz w koszyku?", options=lista_nazw)
+            
+            if wybrane:
+                if st.button("Zatwierdź kupione ✅", use_container_width=True):
+                    # Dla każdego wybranego produktu zmieniamy stan na "Mamy"
+                    for produkt in wybrane:
+                        idx = df[df['Produkt'] == produkt].index[0]
+                        df.at[idx, 'Stan'] = "Mamy"
+                    
+                    # Jedna aktualizacja bazy dla wszystkich wybranych rzeczy
                     conn.update(worksheet="Spizarnia", data=df)
                     st.cache_data.clear()
+                    st.success(f"Kupiono: {', '.join(wybrane)}")
                     st.rerun()
+            
+            st.write("---")
+            st.write("**Braki (podgląd):**")
+            # Wyświetlamy resztę jako bardzo ciasny tekst
+            for _, row in braki_df.iterrows():
+                st.write(f"🔴 {row['Produkt']} ({row['Kategoria']})")
+                
         else:
             st.success("Wszystko kupione! 🎉")
             
