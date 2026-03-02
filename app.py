@@ -33,7 +33,7 @@ if zakladka == "📦 Spiżarnia":
     st.header("📦 Stan Spiżarni")
     
     # Tu tworzymy zakładki na górze strony
-    tab_jedzenie, tab_chemia, tab_dodaj = st.tabs(["🍎 Jedzenie", "🧼 Chemia", "➕ Dodaj Nowy"])
+    tab_jedzenie, tab_chemia, tab_dodaj = st.tabs(["🍎 Szafka nad zlewem", "🧼 Chemia", "➕ Dodaj Nowy"])
 
     with tab_jedzenie:
         # Tutaj wpisz nazwy rzeczy, które mają być w tej zakładce
@@ -101,3 +101,4 @@ elif zakladka == "🍲 Dania Obiadowe":
                 st.error(f"Dodano do koszyka: {', '.join(braki)}")
             else:
                 st.success("Masz wszystko na ten obiad!")
+
