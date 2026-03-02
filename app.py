@@ -78,40 +78,28 @@ elif page == "Lista Zakupow":
         st.error(f"Błąd: {e}")
 
 elif page == "Lista Zakupow":
-    st.title("🛒 Moja Lista")
+    st.title("🛒 Lista")
 
     try:
         df = conn.read(worksheet="Spizarnia")
-        # Pobieramy tylko te produkty, których brakuje
-        braki_df = df[df['Stan'] != "Mamy"]
-        
-        if not braki_df.empty:
-            # Tworzymy listę nazw do wyświetlenia
-            lista_nazw = braki_df['Produkt'].tolist()
+        braki = df[df['Stan'] != "Mamy"]
+
+        if not braki.empty:
+            st.info("Tapnij w produkt, który już masz w koszyku:")
             
-            # MULTISELECT - to jest klucz. Możesz wybrać kilka rzeczy na raz.
-            wybrane = st.multiselect("Co już masz w koszyku?", options=lista_nazw)
-            
-            if wybrane:
-                if st.button("Zatwierdź kupione ✅", use_container_width=True):
-                    # Dla każdego wybranego produktu zmieniamy stan na "Mamy"
-                    for produkt in wybrane:
-                        idx = df[df['Produkt'] == produkt].index[0]
-                        df.at[idx, 'Stan'] = "Mamy"
-                    
-                    # Jedna aktualizacja bazy dla wszystkich wybranych rzeczy
+            for index, row in braki.iterrows():
+                # Tworzymy przycisk na całą szerokość ekranu (use_container_width=True)
+                # W środku przycisku jest nazwa i kategoria
+                button_text = f"🔴 {row['Produkt']} ({row['Kategoria']})"
+                
+                if st.button(button_text, key=f"rect_{index}", use_container_width=True):
+                    # Po kliknięciu od razu zmieniamy stan
+                    df.at[index, 'Stan'] = "Mamy"
                     conn.update(worksheet="Spizarnia", data=df)
                     st.cache_data.clear()
-                    st.success(f"Kupiono: {', '.join(wybrane)}")
                     st.rerun()
-            
-            st.write("---")
-            st.write("**Braki (podgląd):**")
-            # Wyświetlamy resztę jako bardzo ciasny tekst
-            for _, row in braki_df.iterrows():
-                st.write(f"🔴 {row['Produkt']} ({row['Kategoria']})")
-                
         else:
+            st.balloons() # Mała celebracja, bo zakupy zrobione!
             st.success("Wszystko kupione! 🎉")
             
     except Exception as e:
