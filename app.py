@@ -107,26 +107,26 @@ elif st.session_state.page == "Pies":
     if st.button("⬅️ WRÓĆ DO DOMU", use_container_width=True): wroc_do_domu()
     st.title("🐶 STREFA PSA")
     
-    st.subheader("🦴 Dzisiejsze obowiązki")
-    col1, col2 = st.columns(2)
-    # Przyciski typu "Check" - resetują się codziennie w Twojej głowie, ale tu zapisujemy stan
-    if col1.button("🥩 Karma", use_container_width=True): st.balloons()
-    if col2.button("🌳 Spacer", use_container_width=True): st.toast("Dobra robota!")
+    # Pobieranie daty z tabeli 'Inne'
+    row_szczepienie = df_inne[(df_inne['Kategoria'] == 'Pies') & (df_inne['Nazwa'] == 'Szczepienie')]
+    data_szczep = row_szczepienie.iloc[0]['Wartosc'] if not row_szczepienie.empty else "Nie ustawiono"
+
+    st.info(f"💉 Ostatnie szczepienie: **{data_szczep}**")
     
-    st.divider()
-    st.subheader("📅 Ważne terminy")
-    # Wyświetlamy np. datę szczepienia zapisaną w arkuszu 'Inne'
-    if not df_inne.empty:
-        szczepienie = df_inne[(df_inne['Kategoria'] == 'Pies') & (df_inne['Nazwa'] == 'Szczepienie')]
-        if not szczepienie.empty:
-            st.info(f"Ostatnie szczepienie: {szczepienie.iloc[0]['Wartosc']}")
-    
-    with st.expander("Aktualizuj daty"):
-        nowa_data = st.date_input("Kiedy było szczepienie?")
-        if st.button("Zapisz datę"):
-            # Prosta logika aktualizacji w 'Inne'
-            # (Tutaj musiałbyś dodać funkcję zapisu do arkusza Inne)
-            st.success("Zapisano!")
+    with st.expander("📝 Edytuj dane psa"):
+        nowa_data_psa = st.date_input("Data ostatniego szczepienia:", format="YYYY-MM-DD")
+        if st.button("Zaktualizuj datę szczepienia"):
+            # Aktualizacja w DataFrame
+            mask = (df_inne['Kategoria'] == 'Pies') & (df_inne['Nazwa'] == 'Szczepienie')
+            if not df_inne[mask].empty:
+                df_inne.loc[mask, 'Wartosc'] = str(nowa_data_psa)
+            else:
+                new_row = pd.DataFrame([{"Kategoria": "Pies", "Nazwa": "Szczepienie", "Wartosc": str(nowa_data_psa)}])
+                df_inne = pd.concat([df_inne, new_row], ignore_index=True)
+            
+            conn.update(worksheet="Inne", data=df_inne)
+            st.success("Zmieniono datę!")
+            refresh_all()
 
 # =========================================================
 # --- KATEGORIA: AUTO ---
@@ -135,11 +135,30 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ WRÓĆ DO DOMU", use_container_width=True): wroc_do_domu()
     st.title("🚗 STREFA AUTO")
     
-    st.metric("⛽ Paliwo", "75%", "+5%")
+    # Pobieranie danych z tabeli 'Inne'
+    row_przeglad = df_inne[(df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == 'Przegląd')]
+    row_oc = df_inne[(df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == 'Ubezpieczenie')]
     
-    st.subheader("📅 Terminy")
-    st.warning("Przegląd: 15.06.2024")
-    st.error("Ubezpieczenie: 01.12.2024")
+    data_przeglad = row_przeglad.iloc[0]['Wartosc'] if not row_przeglad.empty else "Brak danych"
+    data_oc = row_oc.iloc[0]['Wartosc'] if not row_oc.empty else "Brak danych"
+
+    # Wyświetlanie alertów
+    st.warning(f"🛠️ Przegląd techniczny do: **{data_przeglad}**")
+    st.error(f"📄 Ubezpieczenie OC do: **{data_oc}**")
     
-    if st.button("⛽ Zatankowano do pełna", use_container_width=True):
-        st.success("Super! Zapisano tankowanie.")
+    st.divider()
+    with st.expander("⚙️ Ustawienia terminów auta"):
+        typ = st.selectbox("Co chcesz zmienić?", ["Przegląd", "Ubezpieczenie"])
+        nowa_data_auto = st.date_input("Wybierz nową datę:", format="YYYY-MM-DD")
+        
+        if st.button("Zapisz nową datę"):
+            mask = (df_inne['Kategoria'] == 'Auto') & (df_inne['Nazwa'] == typ)
+            if not df_inne[mask].empty:
+                df_inne.loc[mask, 'Wartosc'] = str(nowa_data_auto)
+            else:
+                new_row = pd.DataFrame([{"Kategoria": "Auto", "Nazwa": typ, "Wartosc": str(nowa_data_auto)}])
+                df_inne = pd.concat([df_inne, new_row], ignore_index=True)
+            
+            conn.update(worksheet="Inne", data=df_inne)
+            st.success(f"Zaktualizowano {typ}!")
+            refresh_all()
