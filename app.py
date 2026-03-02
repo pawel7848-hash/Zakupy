@@ -78,28 +78,26 @@ elif page == "Lista Zakupow":
         st.error(f"Błąd: {e}")
 
 elif page == "Lista Zakupow":
-    st.title("🛒 Lista")
+    st.title("🛒 Kliknij produkt, by go kupić")
 
     try:
-        # Pobieramy dane
         df = conn.read(worksheet="Spizarnia")
         braki = df[df['Stan'] != "Mamy"]
 
         if not braki.empty:
-            st.write("Kliknij w produkt, żeby go 'kupić':")
-            
             for index, row in braki.iterrows():
-                # Tworzymy JEDEN wielki przycisk na całą szerokość
-                # Nie ma tu żadnych kolumn, więc NIC nie może spaść pod spód
-                nazwa_przycisku = f"🔴 {row['Produkt']} ({row['Kategoria']})"
+                # Tworzymy JEDEN przycisk, którego etykietą jest Nazwa + Kategoria
+                # Parametr use_container_width sprawia, że cały ten tekst jest klikalny
+                # Nie ma tu col1, col2 - jest tylko jeden wielki klikalny napis
+                label = f"🔴 {row['Produkt']} — {row['Kategoria']}"
                 
-                if st.button(nazwa_przycisku, key=f"btn_zakup_{index}", use_container_width=True):
+                if st.button(label, key=f"p_btn_{index}", use_container_width=True):
                     df.at[index, 'Stan'] = "Mamy"
                     conn.update(worksheet="Spizarnia", data=df)
                     st.cache_data.clear()
                     st.rerun()
         else:
-            st.success("Lista jest pusta! 🎉")
+            st.success("Wszystko kupione! 🎉")
             
     except Exception as e:
         st.error(f"Błąd: {e}")
