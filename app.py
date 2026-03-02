@@ -14,8 +14,6 @@ if 'produkty_baza' not in st.session_state:
         "Jajka": True,
         "Sól": True,
         "bagietka": True,
-        "pieprz": True,
-        "Masło": True,
         "Ser": True,
     }
 
@@ -43,7 +41,7 @@ if zakladka == "📦 Spiżarnia":
 
     with tab_szafka1:
         # Tutaj wpisz nazwy rzeczy, które mają być w tej zakładce
-        produkty_szafka1 = ["Chleb", "Masło", "Mleko", "Jajka", "Sól", "bagietka", "pieprz"]
+        produkty_szafka1 = ["Chleb", "Mleko", "Jajka", "Sól", "bagietka", "pieprz"]
         for p in sorted(produkty_szafka1):
             if p in st.session_state.produkty_baza:
                 stan = st.toggle(f"{p}", value=st.session_state.produkty_baza[p], key=f"spiz_{p}")
