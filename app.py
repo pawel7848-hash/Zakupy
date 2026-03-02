@@ -205,8 +205,29 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ MENU DOM", use_container_width=True): wroc_do_domu()
     st.title("🚗 AUTO")
     
-    # Parametr gap="small" pomaga, ale aby wymusić brak zawijania na mobile:
-    # Używamy st.columns([1, 1]) co sugeruje równe proporcje
+    # Wymuszenie równego układu kolumn na mobile za pomocą CSS
+    st.markdown("""
+        <style>
+        /* Szukamy kontenera z kolumnami i blokujemy zawijanie do nowej linii */
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 10px !important;
+        }
+        /* Upewniamy się, że każda kolumna ma połowę szerokości */
+        div[data-testid="column"] {
+            width: 50% !important;
+            min-width: 50% !important;
+            flex: 1 1 50% !important;
+        }
+        /* Opcjonalnie: zmniejszenie fontu w popoverze, żeby tekst nie uciekał */
+        button[data-testid="stBaseButton-secondary"] p {
+            font-size: 13px !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     col_przeglad, col_oc = st.columns(2)
     
     with col_przeglad:
@@ -215,16 +236,5 @@ elif st.session_state.page == "Auto":
     with col_oc:
         kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
     
-    # Dodatek wizualny, aby na telefonie przyciski nie były zbyt blisko krawędzi
-    st.markdown("""
-        <style>
-        [data-testid="column"] {
-            width: calc(50% - 1rem) !important;
-            flex: 1 1 calc(50% - 1rem) !important;
-            min-width: calc(50% - 1rem) !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
