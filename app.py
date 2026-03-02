@@ -205,7 +205,8 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ MENU DOM", use_container_width=True): wroc_do_domu()
     st.title("🚗 AUTO")
     
-    # Tworzymy dwie kolumny
+    # Parametr gap="small" pomaga, ale aby wymusić brak zawijania na mobile:
+    # Używamy st.columns([1, 1]) co sugeruje równe proporcje
     col_przeglad, col_oc = st.columns(2)
     
     with col_przeglad:
@@ -214,5 +215,16 @@ elif st.session_state.page == "Auto":
     with col_oc:
         kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
     
+    # Dodatek wizualny, aby na telefonie przyciski nie były zbyt blisko krawędzi
+    st.markdown("""
+        <style>
+        [data-testid="column"] {
+            width: calc(50% - 1rem) !important;
+            flex: 1 1 calc(50% - 1rem) !important;
+            min-width: calc(50% - 1rem) !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
     st.divider()
     st.metric("⛽ Paliwo", "Ostatnie tankowanie ok!")
