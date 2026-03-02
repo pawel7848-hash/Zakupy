@@ -51,7 +51,7 @@ def zmien_sekcje_kuchni(nazwa):
 # =========================================================
 # --- EKRAN STARTOWY: DOM ---
 # =========================================================
-if st.session_state.page == "Dom":
+if st.session_state.page == "Menu Dom":
     st.title("🏠 DOM")
     st.divider()
     
@@ -195,3 +195,4 @@ elif st.session_state.page == "Kuchnia":
                         df_plan = df_plan.drop(idx)
                         conn.update(worksheet="Plan", data=df_plan)
                         refresh_all()
+
