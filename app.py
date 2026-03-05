@@ -167,8 +167,6 @@ elif st.session_state.page == "Kuchnia":
                         conn.update(worksheet="Dania", data=df_dania); refresh_all()
 
     elif st.session_state.sub_page == "Plan":
-
-    elif st.session_state.sub_page == "Plan":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         st.title("📅 PLAN POSIŁKÓW")
         dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
