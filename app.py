@@ -123,11 +123,19 @@ elif st.session_state.page == "Kuchnia":
         else:
             if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.wybrane_miejsce = None; st.rerun()
             m = st.session_state.wybrane_miejsce
+            st.subheader(f"Lokalizacja: {m}")
             for idx, r in df_spizarnia[df_spizarnia['Miejsce'] == m].iterrows():
-                ik = "🟢" if r['Stan'] == "Mamy" else "🔴"
-                if st.button(f"{ik} {r['Produkt']}", key=f"s_{idx}", use_container_width=True):
-                    df_spizarnia.at[idx, 'Stan'] = "Brak" if r['Stan'] == "Mamy" else "Mamy"
-                    conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                stan = r['Stan']
+                ikona = "🟢" if stan == "Mamy" else ("🟡" if stan == "Sprawdź" else "🔴")
+                c1, c2 = st.columns([2, 1])
+                c1.write(f"{ikona} {r['Produkt']}")
+                with c2.popover("Zmień stan"):
+                    if st.button("🟢 MAMY", key=f"m_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                    if st.button("🟡 SPRAWDŹ", key=f"s_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                    if st.button("🔴 BRAK", key=f"b_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
     elif st.session_state.sub_page == "Dania":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
 
@@ -163,9 +171,7 @@ elif st.session_state.page == "Kuchnia":
     elif st.session_state.sub_page == "Plan":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         st.title("📅 PLAN POSIŁKÓW")
-
         dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
-
         with st.expander("➕ DODAJ DANIE DO PLANU"):
             with st.form("f_plan_nowy"):
                 d_wybor = st.selectbox("Wybierz dzień:", dni)
@@ -176,52 +182,47 @@ elif st.session_state.page == "Kuchnia":
                         nw_p = pd.DataFrame([{"Dzien": d_wybor, "Danie": danie_wybor}])
                         df_plan = pd.concat([df_plan, nw_p], ignore_index=True)
                         conn.update(worksheet="Plan", data=df_plan)
-                        # Automatyczne dodawanie braków do listy zakupów
                         przepis = df_dania[df_dania['Nazwa'] == danie_wybor].iloc[0]
                         skladniki = [s.strip() for s in str(przepis['Skladniki']).split(',') if s.strip()]
                         for s in skladniki:
-                            mask = df_spizarnia['Produkt'].str.contains(f"^{s}$", case=False, na=False, regex=True)
+                            mask = df_spizarnia['Produkt'].str.lower() == s.lower()
                             if not df_spizarnia[mask].empty:
-                                df_spizarnia.loc[mask, 'Stan'] = "Brak"
+                                if df_spizarnia.loc[mask, 'Stan'].values[0] != "Mamy":
+                                    df_spizarnia.loc[mask, 'Stan'] = "Brak"
                             else:
                                 ns = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
                                 df_spizarnia = pd.concat([df_spizarnia, ns], ignore_index=True)
                         conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-
         st.divider()
         for d in dni:
             plan_dnia = df_plan[df_plan['Dzien'] == d]
             if not plan_dnia.empty:
                 st.subheader(f"📅 {d}")
                 for idx, p in plan_dnia.iterrows():
-                    # --- LOGIKA SPRAWDZANIA SKŁADNIKÓW ---
                     danie_nazwa = p['Danie']
-                    czy_mamy_wszystko = True
-                    lista_brakow = []
-
-                    if not df_dania.empty and danie_nazwa in df_dania['Nazwa'].values:
+                    czy_mamy = True; braki = []
+                    if danie_nazwa in df_dania['Nazwa'].values:
                         przepis = df_dania[df_dania['Nazwa'] == danie_nazwa].iloc[0]
-                        skladniki_dania = [s.strip() for s in str(przepis['Skladniki']).split(',') if s.strip()]
-                        for s in skladniki_dania:
-                            # Sprawdzamy czy produkt jest w spizarni i czy jego stan to "Mamy"
-                            mask = (df_spizarnia['Produkt'].str.lower() == s.lower()) & (df_spizarnia['Stan'] == "Mamy")
-                            if df_spizarnia[mask].empty:
-                                czy_mamy_wszystko = False
-                                lista_brakow.append(s)
-
-                    ikona = "🟢" if czy_mamy_wszystko else "🔴"
-                    info_tekst = f"{ikona} {danie_nazwa}"
-
+                        skladniki_d = [s.strip() for s in str(przepis['Skladniki']).split(',') if s.strip()]
+                        for s in skladniki_d:
+                            m = (df_spizarnia['Produkt'].str.lower() == s.lower()) & (df_spizarnia['Stan'] == "Mamy")
+                            if df_spizarnia[m].empty:
+                                czy_mamy = False; braki.append(s)
                     col1, col2 = st.columns([4, 1])
                     with col1:
-                        if czy_mamy_wszystko:
-                            st.success(info_tekst)
-                        else:
-                            st.error(f"{info_tekst} (Braki: {', '.join(lista_brakow)})")
-
+                        if czy_mamy: st.success(f"🟢 {danie_nazwa}")
+                        else: st.error(f"🔴 {danie_nazwa} (Braki: {', '.join(braki)})")
                     if col2.button("❌", key=f"del_p_{idx}"):
-                        df_plan = df_plan.drop(idx)
-                        conn.update(worksheet="Plan", data=df_plan); refresh_all()
+                        if danie_nazwa in df_dania['Nazwa'].values:
+                            przepis = df_dania[df_dania['Nazwa'] == danie_nazwa].iloc[0]
+                            skladniki_do_spr = [s.strip() for s in str(przepis['Skladniki']).split(',') if s.strip()]
+                            for s in skladniki_do_spr:
+                                mask_s = df_spizarnia['Produkt'].str.lower() == s.lower()
+                                if not df_spizarnia[mask_s].empty:
+                                    if df_spizarnia.loc[mask_s, 'Stan'].values[0] == "Mamy":
+                                        df_spizarnia.loc[mask_s, 'Stan'] = "Sprawdź"
+                            conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                        df_plan = df_plan.drop(idx); conn.update(worksheet="Plan", data=df_plan); refresh_all()
 
 elif st.session_state.page == "Pies":
     if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.page = "Menu Dom"; st.rerun()
