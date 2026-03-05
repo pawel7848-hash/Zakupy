@@ -47,7 +47,7 @@ def kafelek_terminu(label, kategoria, nazwa_klucza):
         if data_final >= today: kolor, status = "green", "✅ OK"
         else: kolor, status = "red", "🚨 TERMIN!"
     with st.popover(f":{kolor}[{label}: {data_final.strftime('%d.%m.%Y')}]", use_container_width=True):
-    st.write(f"Zmień datę: {label}")
+        st.write(f"Zmień datę: {label}")
         nowa = st.date_input("Data", value=data_final, format="DD.MM.YYYY", key=f"d_{kategoria}{nazwa_klucza}")
         if st.button("Zapisz", key=f"b{kategoria}_{nazwa_klucza}"):
             nowa_str = nowa.strftime('%Y-%m-%d')
@@ -161,3 +161,4 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.page = "Menu Dom"; st.rerun()
     kafelek_terminu("🛠️ Przegląd", "Auto", "Przegląd")
     kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
+
