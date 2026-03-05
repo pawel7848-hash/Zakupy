@@ -78,23 +78,37 @@ elif st.session_state.page == "Kuchnia":
     elif st.session_state.sub_page == "Lista":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         st.title("🛒 LISTA ZAKUPÓW")
-        with st.expander("➕ DODAJ PRODUKT DO LISTY", expanded=True):
+        with st.expander("➕ DODAJ PRODUKT", expanded=False):
             with st.form("q_add_list"):
-                q_n = st.text_input("Nazwa produktu:")
+                # --- TUTAJ ZMIANA: LISTA PRODUKTÓW DO WYBORU ---
+                lista_wszystkich = sorted(df_spizarnia['Produkt'].unique().tolist()) if not df_spizarnia.empty else []
+                q_n = st.selectbox("Wybierz produkt (możesz wpisać nazwę):", [""] + lista_wszystkich, help="Zacznij pisać, aby przefiltrować listę")
+                # Jeśli produktu nie ma na liście, używamy pola niżej:
+                new_p_name = st.text_input("LUB wpisz zupełnie nowy produkt (jeśli nie ma go wyżej):")
+
                 ist_m = sorted(df_spizarnia['Miejsce'].unique()) if not df_spizarnia.empty else []
                 c1, c2 = st.columns(2)
                 with c1: wyb = st.selectbox("Miejsce:", ["+ NOWE"] + ist_m)
-                with c2: n_m = st.text_input("Lub wpisz nowe:")
+                with c2: n_m = st.text_input("Lub wpisz nowe miejsce:")
+
                 if st.form_submit_button("DODAJ DO LISTY", use_container_width=True):
-                    if q_n:
+                    # Decydujemy, którą nazwę wziąć: z listy czy z pola tekstowego
+                    final_name = new_p_name if new_p_name else q_n
+
+                    if final_name:
                         f_m = n_m if n_m else (wyb if wyb != "+ NOWE" else "Inne")
-                        mask = df_spizarnia['Produkt'].str.lower() == q_n.lower()
+                        df_spizarnia = df_spizarnia.dropna(subset=['Produkt'])
+                        mask = df_spizarnia['Produkt'].str.lower() == final_name.lower()
+
                         if not df_spizarnia[mask].empty:
-                            df_spizarnia.loc[mask, 'Stan'] = "Brak"; df_spizarnia.loc[mask, 'Miejsce'] = f_m
+                            df_spizarnia.loc[mask, 'Stan'] = "Brak"
+                            df_spizarnia.loc[mask, 'Miejsce'] = f_m
                         else:
-                            nw = pd.DataFrame([{"Produkt": q_n, "Stan": "Brak", "Miejsce": f_m}])
+                            nw = pd.DataFrame([{"Produkt": final_name, "Stan": "Brak", "Miejsce": f_m}])
                             df_spizarnia = pd.concat([df_spizarnia, nw], ignore_index=True)
-                        conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+
+                        conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                        refresh_all()
         st.divider()
         braki = df_spizarnia[df_spizarnia['Stan'] != "Mamy"]
         for idx, r in braki.iterrows():
