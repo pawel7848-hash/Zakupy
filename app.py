@@ -119,27 +119,43 @@ elif st.session_state.page == "Kuchnia":
         with st.form("a_d"):
             dn = st.text_input("Danie:"); ds = st.text_area("Składniki (po przecinku):")
             if st.form_submit_button("Zapisz"):
-                nw = pd.DataFrame([{"Nazwa": dn, "Skladniki": ds}])
-                df_dania = pd.concat([df_dania, nw], ignore_index=True); conn.update(worksheet="Dania", data=df_dania); refresh_all()
-        for d in df_dania.iterrows():
-            with st.expander(f"🍴 {str(d['Nazwa']).upper()}"): st.write(d['Skladniki'])
+                if dn:
+                    nw = pd.DataFrame([{"Nazwa": dn, "Skladniki": ds}])
+                    df_dania = pd.concat([df_dania, nw], ignore_index=True)
+                    conn.update(worksheet="Dania", data=df_dania); refresh_all()
+
+        df_clean = df_dania.dropna(subset=['Nazwa']) if not df_dania.empty else pd.DataFrame()
+        for idx, d in df_clean.iterrows():
+            n_str = str(d['Nazwa'])
+            s_str = str(d['Skladniki']) if pd.notnull(d['Skladniki']) else ""
+            with st.expander(f"🍴 {n_str.upper()}"): st.write(s_str)
+
     elif st.session_state.sub_page == "Plan":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
-        with st.expander("➕ DODAJ"):
+        with st.expander("➕ DODAJ DO PLANU"):
             with st.form("f_p"):
-                d_w = st.selectbox("Dzień", dni); dan_w = st.selectbox("Danie", df_dania['Nazwa'].unique() if not df_dania.empty else ["Brak"])
+                d_w = st.selectbox("Dzień", dni)
+                dania_list = df_dania['Nazwa'].dropna().unique() if not df_dania.empty else []
+                dan_w = st.selectbox("Danie", dania_list if len(dania_list)>0 else ["Brak"])
                 if st.form_submit_button("Dodaj"):
                     nw = pd.DataFrame([{"Dzien": d_w, "Danie": dan_w}])
-                    df_plan = pd.concat([df_plan, nw], ignore_index=True); conn.update(worksheet="Plan", data=df_plan)
-                    przep = df_dania[df_dania['Nazwa'] == dan_w].iloc[0]
-                    for s in [s.strip() for s in str(przep['Skladniki']).split(',')]:
-                        mask = df_spizarnia['Produkt'].str.contains(s, case=False, na=False)
-                        if df_spizarnia[mask].empty:
-                            ns = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
-                            df_spizarnia = pd.concat([df_spizarnia, nw], ignore_index=True)
-                        else: df_spizarnia.loc[mask, 'Stan'] = "Brak"
-                    conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                    df_plan = pd.concat([df_plan, nw], ignore_index=True)
+                    conn.update(worksheet="Plan", data=df_plan)
+
+                    if dan_w != "Brak":
+                        przep = df_dania[df_dania['Nazwa'] == dan_w].iloc[0]
+                        skladniki = [s.strip() for s in str(przep['Skladniki']).split(',') if s.strip()]
+                        for s in skladniki:
+                            mask = df_spizarnia['Produkt'].str.contains(s, case=False, na=False)
+                            if not df_spizarnia[mask].empty:
+                                df_spizarnia.loc[mask, 'Stan'] = "Brak"
+                            else:
+                                ns = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
+                                df_spizarnia = pd.concat([df_spizarnia, ns], ignore_index=True)
+                        conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                    refresh_all()
+
         for d in dni:
             p_d = df_plan[df_plan['Dzien'] == d]
             if not p_d.empty:
@@ -147,8 +163,9 @@ elif st.session_state.page == "Kuchnia":
                 for idx, p in p_d.iterrows():
                     c1, c2 = st.columns([4,1])
                     c1.write(f"🍴 {p['Danie']}")
-                    if c2.button("❌", key=f"del{idx}"):
-                        df_plan = df_plan.drop(idx); conn.update(worksheet="Plan", data=df_plan); refresh_all()
+                    if c2.button("❌", key=f"del_{idx}"):
+                        df_plan = df_plan.drop(idx)
+                        conn.update(worksheet="Plan", data=df_plan); refresh_all()
 
 elif st.session_state.page == "Pies":
     if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.page = "Menu Dom"; st.rerun()
