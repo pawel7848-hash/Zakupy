@@ -124,30 +124,26 @@ elif st.session_state.page == "Kuchnia":
             if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.wybrane_miejsce = None; st.rerun()
             m = st.session_state.wybrane_miejsce
             st.subheader(f"Lokalizacja: {m}")
+
             for idx, r in df_spizarnia[df_spizarnia['Miejsce'] == m].iterrows():
                 stan = r['Stan']
                 ikona = "🟢" if stan == "Mamy" else ("🟡" if stan == "Sprawdź" else "🔴")
-                c1, c2 = st.columns([2, 1])
-                c1.write(f"{ikona} {r['Produkt']}")
-                with c2.popover("Zmień stan"):
-                    if st.button("🟢 MAMY", key=f"m_{idx}", use_container_width=True):
-                        df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-                    if st.button("🟡 SPRAWDŹ", key=f"s_{idx}", use_container_width=True):
-                        df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-                    if st.button("🔴 BRAK", key=f"b_{idx}", use_container_width=True):
-                        df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-    elif st.session_state.sub_page == "Dania":
-        if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
 
-        with st.expander("➕ DODAJ NOWY PRZEPIS"):
-            with st.form("a_d"):
-                dn = st.text_input("Nazwa dania:")
-                ds = st.text_area("Składniki (rozdzielaj przecinkami):")
-                if st.form_submit_button("ZAPISZ NOWE DANIE", use_container_width=True):
-                    if dn:
-                        nw = pd.DataFrame([{"Nazwa": dn, "Skladniki": ds}])
-                        df_dania = pd.concat([df_dania, nw], ignore_index=True)
-                        conn.update(worksheet="Dania", data=df_dania); refresh_all()
+                # Tworzymy 3 kolumny: 1 na nazwę i 2 na szybkie przełączniki
+                c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
+
+                c1.write(f"{ikona} {r['Produkt']}")
+
+                # Przyciski bezpośredniego wyboru stanu
+                if c2.button("🟢", key=f"m_{idx}", help="Mamy", use_container_width=True):
+                    df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+
+                if c3.button("🟡", key=f"s_{idx}", help="Sprawdź", use_container_width=True):
+                    df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+
+                if c4.button("🔴", key=f"b_{idx}", help="Brak", use_container_width=True):
+                    df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+            st.divider()
 
         st.divider()
         df_clean = df_dania.dropna(subset=['Nazwa']) if not df_dania.empty else pd.DataFrame()
