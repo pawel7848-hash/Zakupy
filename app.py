@@ -1,3 +1,4 @@
+
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
@@ -37,15 +38,14 @@ def kafelek_terminu(label, kategoria, nazwa_klucza):
     row = df_inne[(df_inne['Kategoria'] == kategoria) & (df_inne['Nazwa'] == nazwa_klucza)]
     today = datetime.now().date()
     data_final = today
-    kolor, status = "gray", "BRAK"
+    kolor = "gray"
     if not row.empty:
         val = str(row.iloc[0]['Wartosc']).strip()
         try: data_final = datetime.strptime(val[:10], '%Y-%m-%d').date()
         except:
             try: data_final = datetime.strptime(val[:10], '%d.%m.%Y').date()
             except: data_final = today
-        if data_final >= today: kolor, status = "green", "✅ OK"
-        else: kolor, status = "red", "🚨 TERMIN!"
+        kolor = "green" if data_final >= today else "red"
     with st.popover(f":{kolor}[{label}: {data_final.strftime('%d.%m.%Y')}]", use_container_width=True):
         st.write(f"Zmień datę: {label}")
         nowa = st.date_input("Data", value=data_final, format="DD.MM.YYYY", key=f"d_{kategoria}{nazwa_klucza}")
@@ -71,37 +71,35 @@ elif st.session_state.page == "Kuchnia":
         st.session_state.page = "Menu Dom"; st.session_state.sub_page = None; st.rerun()
     if st.session_state.sub_page is None:
         st.title("🍳 KUCHNIA")
-        with st.expander("⚡ SZYBKI ZAKUP / NOWY PRODUKT", expanded=True):
-            with st.form("q_add"):
-                q_n = st.text_input("Co dodać?")
-                ist_m = sorted(df_spizarnia['Miejsce'].unique()) if not df_spizarnia.empty else []
-                c1, c2 = st.columns(2)
-                with c1: wyb = st.selectbox("Miejsce:", ["+ NOWE"] + ist_m)
-                with c2: n_m = st.text_input("Lub wpisz nowe:")
-                q_s = st.radio("Stan:", ["Brak (Lista)", "Mamy"], horizontal=True)
-                if st.form_submit_button("ZAPISZ"):
-                    f_m = n_m if n_m else (wyb if wyb != "+ NOWE" else "Inne")
-                    f_s = "Brak" if "Brak" in q_s else "Mamy"
-                    mask = df_spizarnia['Produkt'].str.lower() == q_n.lower()
-                    if not df_spizarnia[mask].empty:
-                        df_spizarnia.loc[mask, 'Stan'] = f_s
-                        df_spizarnia.loc[mask, 'Miejsce'] = f_m
-                    else:
-                        nw = pd.DataFrame([{"Produkt": q_n, "Stan": f_s, "Miejsce": f_m}])
-                        df_spizarnia = pd.concat([df_spizarnia, nw], ignore_index=True)
-                    conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
         if st.button("🛒 LISTA ZAKUPÓW", use_container_width=True): st.session_state.sub_page = "Lista"; st.rerun()
         if st.button("📦 STAN SPIŻARNI", use_container_width=True): st.session_state.sub_page = "Spizarnia"; st.rerun()
         if st.button("🥘 PRZEPISY", use_container_width=True): st.session_state.sub_page = "Dania"; st.rerun()
         if st.button("📅 PLAN POSIŁKÓW", use_container_width=True): st.session_state.sub_page = "Plan"; st.rerun()
-
     elif st.session_state.sub_page == "Lista":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
+        st.title("🛒 LISTA ZAKUPÓW")
+        with st.expander("➕ DODAJ PRODUKT DO LISTY", expanded=True):
+            with st.form("q_add_list"):
+                q_n = st.text_input("Nazwa produktu:")
+                ist_m = sorted(df_spizarnia['Miejsce'].unique()) if not df_spizarnia.empty else []
+                c1, c2 = st.columns(2)
+                with c1: wyb = st.selectbox("Miejsce:", ["+ NOWE"] + ist_m)
+                with c2: n_m = st.text_input("Lub wpisz nowe:")
+                if st.form_submit_button("DODAJ DO LISTY", use_container_width=True):
+                    if q_n:
+                        f_m = n_m if n_m else (wyb if wyb != "+ NOWE" else "Inne")
+                        mask = df_spizarnia['Produkt'].str.lower() == q_n.lower()
+                        if not df_spizarnia[mask].empty:
+                            df_spizarnia.loc[mask, 'Stan'] = "Brak"; df_spizarnia.loc[mask, 'Miejsce'] = f_m
+                        else:
+                            nw = pd.DataFrame([{"Produkt": q_n, "Stan": "Brak", "Miejsce": f_m}])
+                            df_spizarnia = pd.concat([df_spizarnia, nw], ignore_index=True)
+                        conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+        st.divider()
         braki = df_spizarnia[df_spizarnia['Stan'] != "Mamy"]
         for idx, r in braki.iterrows():
             if st.button(f"🔴 {r['Produkt']} ({r['Miejsce']})", key=f"l_{idx}", use_container_width=True):
                 df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-
     elif st.session_state.sub_page == "Spizarnia":
         if st.session_state.wybrane_miejsce is None:
             if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
@@ -116,7 +114,6 @@ elif st.session_state.page == "Kuchnia":
                 if st.button(f"{ik} {r['Produkt']}", key=f"s_{idx}", use_container_width=True):
                     df_spizarnia.at[idx, 'Stan'] = "Brak" if r['Stan'] == "Mamy" else "Mamy"
                     conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-
     elif st.session_state.sub_page == "Dania":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         with st.form("a_d"):
@@ -124,9 +121,8 @@ elif st.session_state.page == "Kuchnia":
             if st.form_submit_button("Zapisz"):
                 nw = pd.DataFrame([{"Nazwa": dn, "Skladniki": ds}])
                 df_dania = pd.concat([df_dania, nw], ignore_index=True); conn.update(worksheet="Dania", data=df_dania); refresh_all()
-        for _, d in df_dania.iterrows():
+        for d in df_dania.iterrows():
             with st.expander(f"🍴 {str(d['Nazwa']).upper()}"): st.write(d['Skladniki'])
-
     elif st.session_state.sub_page == "Plan":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
         dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
@@ -138,10 +134,11 @@ elif st.session_state.page == "Kuchnia":
                     df_plan = pd.concat([df_plan, nw], ignore_index=True); conn.update(worksheet="Plan", data=df_plan)
                     przep = df_dania[df_dania['Nazwa'] == dan_w].iloc[0]
                     for s in [s.strip() for s in str(przep['Skladniki']).split(',')]:
-                        if df_spizarnia[df_spizarnia['Produkt'].str.contains(s, case=False, na=False)].empty:
+                        mask = df_spizarnia['Produkt'].str.contains(s, case=False, na=False)
+                        if df_spizarnia[mask].empty:
                             ns = pd.DataFrame([{"Produkt": s, "Stan": "Brak", "Miejsce": "Inne"}])
-                            df_spizarnia = pd.concat([df_spizarnia, ns], ignore_index=True)
-                        else: df_spizarnia.loc[df_spizarnia['Produkt'].str.contains(s, case=False, na=False), 'Stan'] = "Brak"
+                            df_spizarnia = pd.concat([df_spizarnia, nw], ignore_index=True)
+                        else: df_spizarnia.loc[mask, 'Stan'] = "Brak"
                     conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
         for d in dni:
             p_d = df_plan[df_plan['Dzien'] == d]
@@ -150,7 +147,7 @@ elif st.session_state.page == "Kuchnia":
                 for idx, p in p_d.iterrows():
                     c1, c2 = st.columns([4,1])
                     c1.write(f"🍴 {p['Danie']}")
-                    if c2.button("❌", key=f"del_{idx}"):
+                    if c2.button("❌", key=f"del{idx}"):
                         df_plan = df_plan.drop(idx); conn.update(worksheet="Plan", data=df_plan); refresh_all()
 
 elif st.session_state.page == "Pies":
@@ -161,4 +158,3 @@ elif st.session_state.page == "Auto":
     if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.page = "Menu Dom"; st.rerun()
     kafelek_terminu("🛠️ Przegląd", "Auto", "Przegląd")
     kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
-
