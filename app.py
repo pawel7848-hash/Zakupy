@@ -124,12 +124,9 @@ elif st.session_state.page == "Kuchnia":
             if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.wybrane_miejsce = None; st.rerun()
             m = st.session_state.wybrane_miejsce
             st.subheader(f"Lokalizacja: {m}")
-
             for idx, r in df_spizarnia[df_spizarnia['Miejsce'] == m].iterrows():
                 stan = r['Stan']
                 ikona = "🟢" if stan == "Mamy" else ("🟡" if stan == "Sprawdź" else "🔴")
-
-                # Tworzymy popover, który wygląda jak szeroki przycisk z nazwą produktu
                 with st.popover(f"{ikona} {r['Produkt']}", use_container_width=True):
                     st.write(f"Zmień stan dla: {r['Produkt']}")
                     c1, c2, c3 = st.columns(3)
@@ -139,15 +136,24 @@ elif st.session_state.page == "Kuchnia":
                         df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
                     if c3.button("🔴", key=f"b_{idx}", use_container_width=True):
                         df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-            st.divider()
 
+    elif st.session_state.sub_page == "Dania":
+        if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
+        st.title("🥘 TWOJE PRZEPISY")
+        with st.expander("➕ DODAJ NOWY PRZEPIS"):
+            with st.form("a_d"):
+                dn = st.text_input("Nazwa dania:")
+                ds = st.text_area("Składniki (rozdzielaj przecinkami):")
+                if st.form_submit_button("ZAPISZ NOWE DANIE", use_container_width=True):
+                    if dn:
+                        nw = pd.DataFrame([{"Nazwa": dn, "Skladniki": ds}])
+                        df_dania = pd.concat([df_dania, nw], ignore_index=True)
+                        conn.update(worksheet="Dania", data=df_dania); refresh_all()
         st.divider()
         df_clean = df_dania.dropna(subset=['Nazwa']) if not df_dania.empty else pd.DataFrame()
-
         for idx, d in df_clean.iterrows():
             n_str = str(d['Nazwa'])
             s_str = str(d['Skladniki']) if pd.notnull(d['Skladniki']) else ""
-
             with st.expander(f"🍴 {n_str.upper()}"):
                 st.write(f"Składniki: {s_str}")
                 c1, c2 = st.columns(2)
@@ -159,6 +165,8 @@ elif st.session_state.page == "Kuchnia":
                     if st.button("ZAPISZ ZMIANY", key=f"sav_d_{idx}"):
                         df_dania.at[idx, 'Skladniki'] = new_s
                         conn.update(worksheet="Dania", data=df_dania); refresh_all()
+
+    elif st.session_state.sub_page == "Plan":
 
     elif st.session_state.sub_page == "Plan":
         if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
