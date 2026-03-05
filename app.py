@@ -129,20 +129,16 @@ elif st.session_state.page == "Kuchnia":
                 stan = r['Stan']
                 ikona = "🟢" if stan == "Mamy" else ("🟡" if stan == "Sprawdź" else "🔴")
 
-                # Tworzymy 3 kolumny: 1 na nazwę i 2 na szybkie przełączniki
-                c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
-
-                c1.write(f"{ikona} {r['Produkt']}")
-
-                # Przyciski bezpośredniego wyboru stanu
-                if c2.button("🟢", key=f"m_{idx}", help="Mamy", use_container_width=True):
-                    df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-
-                if c3.button("🟡", key=f"s_{idx}", help="Sprawdź", use_container_width=True):
-                    df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
-
-                if c4.button("🔴", key=f"b_{idx}", help="Brak", use_container_width=True):
-                    df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                # Tworzymy popover, który wygląda jak szeroki przycisk z nazwą produktu
+                with st.popover(f"{ikona} {r['Produkt']}", use_container_width=True):
+                    st.write(f"Zmień stan dla: {r['Produkt']}")
+                    c1, c2, c3 = st.columns(3)
+                    if c1.button("🟢", key=f"m_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                    if c2.button("🟡", key=f"s_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Sprawdź"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+                    if c3.button("🔴", key=f"b_{idx}", use_container_width=True):
+                        df_spizarnia.at[idx, 'Stan'] = "Brak"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
             st.divider()
 
         st.divider()
