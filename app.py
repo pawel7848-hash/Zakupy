@@ -181,13 +181,24 @@ elif st.session_state.page == "Kuchnia":
         with st.expander("➕ DODAJ DANIE DO PLANU"):
             with st.form("f_plan_nowy"):
                 d_wybor = st.selectbox("Wybierz dzień:", dni)
-                lista_dan = df_dania['Nazwa'].dropna().unique().tolist() if not df_dania.empty else []
-                danie_wybor = st.selectbox("Wybierz danie:", lista_dan if lista_dan else ["Brak dań"])
+
+                # Pobieramy listę dań dokładnie tak jak listę produktów w Zakupach
+                lista_dan = sorted(df_dania['Nazwa'].dropna().unique().tolist()) if not df_dania.empty else []
+
+                # Używamy selectboxa z opcją wpisywania (identycznie jak w zakupach)
+                danie_wybor = st.selectbox(
+                    "Wybierz danie (zacznij pisać, aby przefiltrować):",
+                    [""] + lista_dan,
+                    help="Zacznij pisać nazwę dania, lista sama się zawęzi"
+                )
+
                 if st.form_submit_button("DODAJ DO PLANU", use_container_width=True):
-                    if danie_wybor != "Brak dań":
+                    if danie_wybor:  # Sprawdzamy czy cokolwiek zostało wybrane
                         nw_p = pd.DataFrame([{"Dzien": d_wybor, "Danie": danie_wybor}])
                         df_plan = pd.concat([df_plan, nw_p], ignore_index=True)
                         conn.update(worksheet="Plan", data=df_plan)
+
+                        # Reszta logiki składników (ta sama co wcześniej)
                         przepis = df_dania[df_dania['Nazwa'] == danie_wybor].iloc[0]
                         skladniki = [s.strip() for s in str(przepis['Skladniki']).split(',') if s.strip()]
                         for s in skladniki:
