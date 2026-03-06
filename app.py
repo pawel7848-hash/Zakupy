@@ -125,9 +125,28 @@ elif st.session_state.page == "Kuchnia":
     elif st.session_state.sub_page == "Spizarnia":
         if st.session_state.wybrane_miejsce is None:
             if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
+
             miejsca = sorted(df_spizarnia['Miejsce'].fillna('Inne').unique())
+
             for m in miejsca:
-                if st.button(f"📂 {m.upper()}", use_container_width=True): st.session_state.wybrane_miejsce = m; st.rerun()
+                # LOGIKA KOLORÓW DLA KAFELKA MIEJSCA
+                produkty_w_miejscu = df_spizarnia[df_spizarnia['Miejsce'] == m]
+                stany = produkty_w_miejscu['Stan'].values
+
+                if "Brak" in stany:
+                    kolor_label = "🔴"
+                    css_color = "red"
+                elif "Sprawdź" in stany:
+                    kolor_label = "🟡"
+                    css_color = "orange"
+                else:
+                    kolor_label = "🟢"
+                    css_color = "green"
+
+                # Wyświetlamy kafelek z ikoną stanu
+                if st.button(f"{kolor_label} {m.upper()}", key=f"folder_{m}", use_container_width=True):
+                    st.session_state.wybrane_miejsce = m
+                    st.rerun()
         else:
             if st.button("⬅️ POWRÓT", use_container_width=True): st.session_state.wybrane_miejsce = None; st.rerun()
             m = st.session_state.wybrane_miejsce
