@@ -110,10 +110,18 @@ elif st.session_state.page == "Kuchnia":
                         conn.update(worksheet="Spizarnia", data=df_spizarnia)
                         refresh_all()
         st.divider()
-        braki = df_spizarnia[df_spizarnia['Stan'] != "Mamy"]
-        for idx, r in braki.iterrows():
-            if st.button(f"🔴 {r['Produkt']} ({r['Miejsce']})", key=f"l_{idx}", use_container_width=True):
-                df_spizarnia.at[idx, 'Stan'] = "Mamy"; conn.update(worksheet="Spizarnia", data=df_spizarnia); refresh_all()
+        # ZMIANA: Filtrujemy tylko produkty, które mają stan "Brak"
+        braki = df_spizarnia[df_spizarnia['Stan'] == "Brak"].dropna(subset=['Produkt'])
+
+        if braki.empty:
+            st.info("Lista zakupów jest pusta. Wszystko mamy lub czeka na sprawdzenie! 🧐")
+        else:
+            for idx, r in braki.iterrows():
+                if st.button(f"🔴 {r['Produkt']} ({r['Miejsce']})", key=f"l_{idx}", use_container_width=True):
+                    # Po kliknięciu na liście, produkt zmienia się na "Mamy" i znika z listy
+                    df_spizarnia.at[idx, 'Stan'] = "Mamy"
+                    conn.update(worksheet="Spizarnia", data=df_spizarnia)
+                    refresh_all()
     elif st.session_state.sub_page == "Spizarnia":
         if st.session_state.wybrane_miejsce is None:
             if st.button("⬅️ WSTECZ", use_container_width=True): st.session_state.sub_page = None; st.rerun()
