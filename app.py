@@ -271,46 +271,84 @@ elif st.session_state.page == "Auto":
 # --- SEKCJA TODO ---
 elif st.session_state.page == "Todo":
     if st.button("⬅️ POWRÓT DO MENU", use_container_width=True): 
-        st.session_state.page = "Menu Dom"; st.session_state.todo_rok = None; st.session_state.todo_miesiac = None; st.rerun()
-    
+        st.session_state.page = "Menu Dom"
+        st.session_state.todo_rok = None
+        st.session_state.todo_miesiac = None
+        st.rerun()
+
+    # --- POZIOM 1: WYBÓR ROKU ---
     if st.session_state.todo_rok is None:
         st.title("📅 WYBIERZ ROK")
-        for r in [2026, 2027, 2028]:
+        lata = [2026, 2027, 2028]
+        for r in lata:
             if st.button(f"🗓️ {r}", use_container_width=True):
-                st.session_state.todo_rok = r; st.rerun()
-    
+                st.session_state.todo_rok = r
+                st.rerun()
+
+    # --- POZIOM 2: WYBÓR MIESIĄCA ---
     elif st.session_state.todo_miesiac is None:
         if st.button("⬅️ ZMIEŃ ROK", use_container_width=True): 
-            st.session_state.todo_rok = None; st.rerun()
+            st.session_state.todo_rok = None
+            st.rerun()
         st.title(f"🗓️ ROK {st.session_state.todo_rok}")
         miesiace = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
-        c = st.columns(2)
+        cols = st.columns(2)
         for i, m in enumerate(miesiace):
-            if c[i % 2].button(m, use_container_width=True):
-                st.session_state.todo_miesiac = m; st.rerun()
-    
+            with cols[i % 2]:
+                if st.button(m, use_container_width=True):
+                    st.session_state.todo_miesiac = m
+                    st.rerun()
+
+    # --- POZIOM 3: LISTA ZADAŃ ---
     else:
         if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): 
-            st.session_state.todo_miesiac = None; st.rerun()
+            st.session_state.todo_miesiac = None
+            st.rerun()
+
         st.title(f"📝 {st.session_state.todo_miesiac} {st.session_state.todo_rok}")
-        
-        with st.expander("➕ DODAJ ZADANIE"):
-            with st.form("t_add"):
-                d_t = st.number_input("Dzień:", 1, 31)
-                z_t = st.text_input("Zadanie:")
-                if st.form_submit_button("ZAPISZ", use_container_width=True):
-                    if z_t:
-                        nw = pd.DataFrame([{"Rok": st.session_state.todo_rok, "Miesiac": st.session_state.todo_miesiac, "Dzien": d_t, "Zadanie": z_t}])
-                        df_todo = pd.concat([df_todo, nw], ignore_index=True)
-                        conn.update(worksheet="Todo", data=df_todo); refresh_all()
-        
+
+        # FORMULARZ DODAWANIA
+        with st.expander("➕ DODAJ NOWE ZADANIE"):
+            with st.form("todo_add_form"):
+                t_dzien = st.number_input("Dzień miesiąca:", min_value=1, max_value=31, step=1)
+                t_zadanie = st.text_input("Co masz do zrobienia?")
+                if st.form_submit_button("ZAPISZ ZADANIE", use_container_width=True):
+                    if t_zadanie:
+                        # Tutaj używamy nazw bez polskich znaków, żeby pasowały do arkusza
+                        nw_t = pd.DataFrame([{
+                            "Rok": st.session_state.todo_rok, 
+                            "Miesiac": st.session_state.todo_miesiac, 
+                            "Dzien": t_dzien, 
+                            "Zadanie": t_zadanie
+                        }])
+                        df_todo = pd.concat([df_todo, nw_t], ignore_index=True)
+                        conn.update(worksheet="Todo", data=df_todo)
+                        refresh_all()
+
         st.divider()
-        z_m = df_todo[(df_todo['Rok'] == st.session_state.todo_rok) & (df_todo['Miesiac'] == st.session_state.todo_miesiac)].sort_values("Dzien")
-        if z_m.empty:
-            st.info("Brak zadań! ✨")
-        for idx, r in z_m.iterrows():
-            c1, c2 = st.columns([4, 1])
-            c1.write(f"**{int(r['Dzien'])}.** {r['Zadanie']}")
-            if c2.button("✅", key=f"t_{idx}"):
-                df_todo = df_todo.drop(idx)
-                conn.update(worksheet="Todo", data=df_todo); refresh_all()
+
+        # FILTROWANIE I WYŚWIETLANIE (Używamy Miesiac i Dzien bez ogonków)
+        if not df_todo.empty:
+            # Upewniamy się, że typy danych się zgadzają do filtrowania
+            df_todo['Rok'] = df_todo['Rok'].astype(str)
+            df_todo['Dzien'] = pd.to_numeric(df_todo['Dzien'], errors='coerce')
+            
+            z_m = df_todo[
+                (df_todo['Rok'] == str(st.session_state.todo_rok)) & 
+                (df_todo['Miesiac'] == st.session_state.todo_miesiac)
+            ].sort_values(by="Dzien")
+
+            if z_m.empty:
+                st.info("Brak zadań na ten miesiąc. Czysta karta! ✨")
+            else:
+                for idx, row in z_m.iterrows():
+                    c1, c2 = st.columns([4, 1])
+                    # Wyświetlamy dzień jako liczbę całkowitą
+                    dzien_val = int(row['Dzien']) if pd.notnull(row['Dzien']) else "?"
+                    c1.write(f"**{dzien_val}.** {row['Zadanie']}")
+                    if c2.button("✅", key=f"t_del_{idx}"):
+                        df_todo = df_todo.drop(idx)
+                        conn.update(worksheet="Todo", data=df_todo)
+                        refresh_all()
+        else:
+            st.info("Arkusz zadań jest pusty. Dodaj pierwsze zadanie!")
