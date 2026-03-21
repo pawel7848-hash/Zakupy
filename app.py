@@ -273,6 +273,9 @@ elif st.session_state.page == "Todo":
         if st.button("⬅️ POWRÓT DO MENU", use_container_width=True):
             st.session_state.page = "Menu Dom"; st.session_state.todo_rok = None; st.session_state.todo_miesiac = None; st.rerun()
 
+        # --- KLUCZ: POBIERAMY ŚWIEŻE DANE TUTAJ ---
+        df_todo = get_data("Todo")
+
         if st.session_state.todo_rok is None:
             st.title("📅 WYBIERZ ROK")
             for r in [2026, 2027, 2028]:
@@ -297,34 +300,38 @@ elif st.session_state.page == "Todo":
                     t_zadanie = st.text_input("Zadanie:")
                     if st.form_submit_button("ZAPISZ"):
                         if t_zadanie:
+                            # Ponowne pobranie, żeby nie nadpisać danych innych osób
+                            aktualne_todo = get_data("Todo")
                             nw = pd.DataFrame([{"Rok": str(st.session_state.todo_rok), "Miesiac": str(st.session_state.todo_miesiac), "Dzien": str(t_dzien), "Zadanie": str(t_zadanie)}])
-                            df_todo = pd.concat([df_todo, nw], ignore_index=True)
-                            conn.update(worksheet="Todo", data=df_todo); refresh_all()
+                            do_zapisu = pd.concat([aktualne_todo, nw], ignore_index=True)
+                            conn.update(worksheet="Todo", data=do_zapisu)
+                            refresh_all()
 
             st.divider()
 
             if not df_todo.empty:
-                # KLUCZOWA POPRAWKA: ujednolicamy wszystko do tekstu i usuwamy spacje
+                # Czyścimy nazwy kolumn i dane
+                df_todo.columns = [str(c).strip() for c in df_todo.columns]
                 df_todo['Rok'] = df_todo['Rok'].astype(str).str.strip()
                 df_todo['Miesiac'] = df_todo['Miesiac'].astype(str).str.strip()
 
-                r_wybrany = str(st.session_state.todo_rok).strip()
-                m_wybrany = str(st.session_state.todo_miesiac).strip()
+                r_wyb = str(st.session_state.todo_rok).strip()
+                m_wyb = str(st.session_state.todo_miesiac).strip()
 
-                # Filtrujemy
-                z_m = df_todo[(df_todo['Rok'] == r_wybrany) & (df_todo['Miesiac'] == m_wybrany)].copy()
+                z_m = df_todo[(df_todo['Rok'] == r_wyb) & (df_todo['Miesiac'] == m_wyb)].copy()
 
                 if z_m.empty:
-                    st.info("Brak zadań w tym miesiącu (mimo że są w arkuszu - sprawdź czy Rok i Miesiac w arkuszu są identyczne jak w apce).")
+                    st.info("Brak zadań w tym miesiącu.")
                 else:
-                    # Sortowanie (zamieniamy na liczby tylko do posortowania)
                     z_m['Dzien_int'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
                     z_m = z_m.sort_values('Dzien_int')
-
                     for idx, row in z_m.iterrows():
                         c1, c2 = st.columns([4, 1])
                         c1.write(f"{row['Dzien']}. {row['Zadanie']}")
                         if c2.button("✅", key=f"d_{idx}"):
-                            df_todo = df_todo.drop(idx); conn.update(worksheet="Todo", data=df_todo); refresh_all()
+                            # Usuwamy z oryginalnego df_todo i zapisujemy
+                            df_todo = df_todo.drop(idx)
+                            conn.update(worksheet="Todo", data=df_todo)
+                            refresh_all()
             else:
-                st.info("Baza jest pusta.")
+                st.info("Baza zadań jest pusta.")
