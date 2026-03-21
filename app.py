@@ -268,71 +268,62 @@ elif st.session_state.page == "Auto":
     kafelek_terminu("🛠️ Przegląd", "Auto", "Przegląd")
     kafelek_terminu("📄 OC", "Auto", "Ubezpieczenie")
 
-# --- SEKCJA TODO --- #
+# --- SEKCJA TODO ---
 elif st.session_state.page == "Todo":
-        if st.button("⬅️ POWRÓT DO MENU", use_container_width=True):
-            st.session_state.page = "Menu Dom"; st.session_state.todo_rok = None; st.session_state.todo_miesiac = None; st.rerun()
+    if st.button("⬅️ POWRÓT DO MENU", use_container_width=True):
+        st.session_state.page = "Menu Dom"; st.session_state.todo_rok = None; st.session_state.todo_miesiac = None; st.rerun()
 
-        # 1. POBIERANIE (CAŁKOWITY BRAK CACHE)
-        df_todo = get_data("Todo")
+    if st.session_state.todo_rok is None:
+        st.title("📅 WYBIERZ ROK")
+        for r in [2026, 2027, 2028]:
+            if st.button(f"🗓️ {r}", use_container_width=True):
+                st.session_state.todo_rok = str(r); st.rerun()
 
-        if st.session_state.todo_rok is None:
-            st.title("📅 WYBIERZ ROK")
-            for r in [2026, 2027, 2028]:
-                if st.button(f"🗓️ {r}", use_container_width=True):
-                    st.session_state.todo_rok = str(r); st.rerun()
+    elif st.session_state.todo_miesiac is None:
+        if st.button("⬅️ ZMIEŃ ROK", use_container_width=True): st.session_state.todo_rok = None; st.rerun()
+        st.subheader(f"🗓️ ROK {st.session_state.todo_rok}")
+        miesiace = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
+        for m in miesiace:
+            if st.button(m, use_container_width=True):
+                st.session_state.todo_miesiac = m; st.rerun()
 
-        elif st.session_state.todo_miesiac is None:
-            if st.button("⬅️ ZMIEŃ ROK", use_container_width=True): st.session_state.todo_rok = None; st.rerun()
-            st.subheader(f"🗓️ ROK {st.session_state.todo_rok}")
-            miesiace = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
-            for m in miesiace:
-                if st.button(m, use_container_width=True):
-                    st.session_state.todo_miesiac = m; st.rerun()
+    else:
+        if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): st.session_state.todo_miesiac = None; st.rerun()
+        st.title(f"📝 {st.session_state.todo_miesiac} {st.session_state.todo_rok}")
 
-        else:
-            if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): st.session_state.todo_miesiac = None; st.rerun()
-            st.title(f"📝 {st.session_state.todo_miesiac} {st.session_state.todo_rok}")
+        with st.expander("➕ DODAJ NOWE ZADANIE"):
+            with st.form("todo_add_form"):
+                t_dzien = st.number_input("Dzień:", 1, 31, 1)
+                t_zadanie = st.text_input("Zadanie:")
+                if st.form_submit_button("ZAPISZ"):
+                    if t_zadanie:
+                        nw = pd.DataFrame([{"Rok": str(st.session_state.todo_rok), "Miesiac": str(st.session_state.todo_miesiac), "Dzien": str(t_dzien), "Zadanie": str(t_zadanie)}])
+                        df_todo = pd.concat([df_todo, nw], ignore_index=True)
+                        conn.update(worksheet="Todo", data=df_todo)
+                        refresh_all()
 
-            with st.expander("➕ DODAJ NOWE ZADANIE"):
-                with st.form("todo_add_form"):
-                    t_dzien = st.number_input("Dzień:", 1, 31, 1)
-                    t_zadanie = st.text_input("Zadanie:")
-                    if st.form_submit_button("ZAPISZ"):
-                        if t_zadanie:
-                            akt = conn.read(worksheet="Todo", ttl=0)
-                            nw = pd.DataFrame([{"Rok": str(st.session_state.todo_rok), "Miesiac": str(st.session_state.todo_miesiac), "Dzien": str(t_dzien), "Zadanie": str(t_zadanie)}])
-                            df_z = pd.concat([akt, nw], ignore_index=True)
-                            conn.update(worksheet="Todo", data=df_z)
-                            st.rerun()
+        st.divider()
 
-            st.divider()
+        if not df_todo.empty:
+            r_target = str(st.session_state.todo_rok).strip()
+            m_target = str(st.session_state.todo_miesiac).strip()
+            
+            # Filtracja
+            z_m = df_todo[(df_todo['Rok'].astype(str).str.strip() == r_target) & 
+                         (df_todo['Miesiac'].astype(str).str.strip() == m_target)].copy()
 
-            if not df_todo.empty:
-                # --- PANCERNY FILTR ---
-                # Zamieniamy wszystko na tekst, usuwamy spacje i robimy małe litery
-                df_todo['Rok_F'] = df_todo['Rok'].astype(str).str.strip()
-                df_todo['Mies_F'] = df_todo['Miesiac'].astype(str).str.strip().str.lower()
-
-                r_cel = str(st.session_state.todo_rok).strip()
-                m_cel = str(st.session_state.todo_miesiac).strip().lower()
-
-                # Szukamy zadań (używając nowych, oczyszczonych kolumn)
-                z_m = df_todo[(df_todo['Rok_F'] == r_cel) & (df_todo['Mies_F'] == m_cel)].copy()
-
-                if z_m.empty:
-                    st.info("Brak zadań w tym miesiącu.")
-                else:
-                    # Sortowanie i wyświetlanie (to co masz poniżej)
-                    z_m['Dzien_n'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
-                    z_m = z_m.sort_values('Dzien_n')
-        
-                    for idx, row in z_m.iterrows():
-                        c1, c2 = st.columns([4, 1])
-                        c1.write(f"**{row['Dzien']}.** {row['Zadanie']}")
-                        if c2.button("✅", key=f"d_{idx}"):
-                            df_todo = df_todo.drop(idx)
-                            conn.update(worksheet="Todo", data=df_todo)
-                            refresh_all()
+            if z_m.empty:
+                st.info("Brak zadań w tym miesiącu.")
             else:
-                st.info("Arkusz jest pusty.")
+                z_m['Dzien_n'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
+                z_m = z_m.sort_values('Dzien_n')
+        
+                for idx, row in z_m.iterrows():
+                    c1, c2 = st.columns([4, 1])
+                    c1.write(f"**{row['Dzien']}.** {row['Zadanie']}")
+                    if c2.button("✅", key=f"d_{idx}"):
+                        df_todo = df_todo.drop(idx)
+                        conn.update(worksheet="Todo", data=df_todo)
+                        refresh_all()
+        else:
+            st.info("Baza zadań jest pusta.")
