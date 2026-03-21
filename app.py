@@ -287,43 +287,51 @@ elif st.session_state.page == "Todo":
             if st.button(m, use_container_width=True):
                 st.session_state.todo_miesiac = m; st.rerun()
 
-    else:
-        if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): st.session_state.todo_miesiac = None; st.rerun()
-        st.title(f"📝 {st.session_state.todo_miesiac} {st.session_state.todo_rok}")
-
-        with st.expander("➕ DODAJ NOWE ZADANIE"):
-            with st.form("todo_add_form"):
-                t_dzien = st.number_input("Dzień:", 1, 31, 1)
-                t_zadanie = st.text_input("Zadanie:")
-                if st.form_submit_button("ZAPISZ"):
-                    if t_zadanie:
-                        nw = pd.DataFrame([{"Rok": str(st.session_state.todo_rok), "Miesiac": str(st.session_state.todo_miesiac), "Dzien": str(t_dzien), "Zadanie": str(t_zadanie)}])
-                        df_todo = pd.concat([df_todo, nw], ignore_index=True)
-                        conn.update(worksheet="Todo", data=df_todo)
-                        refresh_all()
-
-        st.divider()
-
-        if not df_todo.empty:
-            r_target = str(st.session_state.todo_rok).strip()
-            m_target = str(st.session_state.todo_miesiac).strip()
-            
-            # Filtracja
-            z_m = df_todo[(df_todo['Rok'].astype(str).str.strip() == r_target) & 
-                         (df_todo['Miesiac'].astype(str).str.strip() == m_target)].copy()
-
-            if z_m.empty:
-                st.info("Brak zadań w tym miesiącu.")
-            else:
-                z_m['Dzien_n'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
-                z_m = z_m.sort_values('Dzien_n')
-        
-                for idx, row in z_m.iterrows():
-                    c1, c2 = st.columns([4, 1])
-                    c1.write(f"**{row['Dzien']}.** {row['Zadanie']}")
-                    if c2.button("✅", key=f"d_{idx}"):
-                        df_todo = df_todo.drop(idx)
-                        conn.update(worksheet="Todo", data=df_todo)
-                        refresh_all()
         else:
-            st.info("Baza zadań jest pusta.")
+            if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): 
+                st.session_state.todo_miesiac = None; st.rerun()
+            
+            st.title(f"📝 {st.session_state.todo_miesiac} {st.session_state.todo_rok}")
+
+            with st.expander("➕ DODAJ NOWE ZADANIE"):
+                with st.form("todo_add_form"):
+                    t_dzien = st.number_input("Dzień:", 1, 31, 1)
+                    t_zadanie = st.text_input("Zadanie:")
+                    if st.form_submit_button("ZAPISZ"):
+                        if t_zadanie:
+                            nw = pd.DataFrame([{"Rok": str(st.session_state.todo_rok), "Miesiac": str(st.session_state.todo_miesiac), "Dzien": str(t_dzien), "Zadanie": str(t_zadanie)}])
+                            df_todo = pd.concat([df_todo, nw], ignore_index=True)
+                            conn.update(worksheet="Todo", data=df_todo)
+                            refresh_all()
+
+            st.divider()
+
+            if not df_todo.empty:
+                # OSTATECZNE UPROSZCZENIE: Wszystko na string i wywalamy spacje
+                r_target = str(st.session_state.todo_rok).strip()
+                m_target = str(st.session_state.todo_miesiac).strip()
+                
+                # Filtr bez żadnych dodatkowych kolumn pomocniczych
+                z_m = df_todo[
+                    (df_todo['Rok'].astype(str).str.strip() == r_target) & 
+                    (df_todo['Miesiac'].astype(str).str.strip() == m_target)
+                ].copy()
+
+                if not z_m.empty:
+                    z_m['Dzien_n'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
+                    z_m = z_m.sort_values('Dzien_n')
+            
+                    for idx, row in z_m.iterrows():
+                        c1, c2 = st.columns([4, 1])
+                        c1.write(f"**{row['Dzien']}.** {row['Zadanie']}")
+                        if c2.button("✅", key=f"d_{idx}"):
+                            df_todo = df_todo.drop(idx)
+                            conn.update(worksheet="Todo", data=df_todo)
+                            refresh_all()
+                else:
+                    st.info(f"Brak zadań. W arkuszu masz {len(df_todo)} wierszy ogółem.")
+                    # To nam powie, czy program w ogóle cokolwiek widzi
+                    if st.checkbox("Pokaż surowe dane z arkusza"):
+                        st.dataframe(df_todo)
+            else:
+                st.info("Baza zadań jest pusta.")
