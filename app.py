@@ -321,18 +321,18 @@ elif st.session_state.page == "Todo":
                 z_m = df_todo[(df_todo['Rok_F'] == r_cel) & (df_todo['Mies_F'] == m_cel)].copy()
 
                 if z_m.empty:
-                    st.warning("Filtr nie widzi zadań.")
-                    # POKAŻ MI CO WIDZI PROGRAM (to nam powie wszystko)
-                    st.write("Wszystkie dane z arkusza (Debug):")
-                    st.dataframe(df_todo[['Rok', 'Miesiac', 'Dzien', 'Zadanie']])
+                    st.info("Brak zadań w tym miesiącu.")
                 else:
+                    # Sortowanie i wyświetlanie (to co masz poniżej)
                     z_m['Dzien_n'] = pd.to_numeric(z_m['Dzien'], errors='coerce').fillna(0)
                     z_m = z_m.sort_values('Dzien_n')
+        
                     for idx, row in z_m.iterrows():
                         c1, c2 = st.columns([4, 1])
-                        c1.write(f"{row['Dzien']}. {row['Zadanie']}")
+                        c1.write(f"**{row['Dzien']}.** {row['Zadanie']}")
                         if c2.button("✅", key=f"d_{idx}"):
-                            df_f = df_todo.drop(idx).drop(columns=['Rok_F', 'Mies_F']) # Usuwamy kolumny pomocnicze przed zapisem
-                            conn.update(worksheet="Todo", data=df_f); st.rerun()
+                            df_todo = df_todo.drop(idx)
+                            conn.update(worksheet="Todo", data=df_todo)
+                            refresh_all()
             else:
                 st.info("Arkusz jest pusty.")
