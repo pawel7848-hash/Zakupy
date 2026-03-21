@@ -274,7 +274,7 @@ elif st.session_state.page == "Todo":
             st.session_state.page = "Menu Dom"; st.session_state.todo_rok = None; st.session_state.todo_miesiac = None; st.rerun()
 
         # 1. POBIERANIE (CAŁKOWITY BRAK CACHE)
-        df_todo = conn.read(worksheet="Todo", ttl=0)
+        df_todo = get_data("Todo")
 
         if st.session_state.todo_rok is None:
             st.title("📅 WYBIERZ ROK")
