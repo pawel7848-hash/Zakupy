@@ -287,7 +287,7 @@ elif st.session_state.page == "Todo":
             if st.button(m, use_container_width=True):
                 st.session_state.todo_miesiac = m; st.rerun()
 
-        else:
+else:
             if st.button(f"⬅️ ZMIEŃ MIESIĄC ({st.session_state.todo_miesiac})", use_container_width=True): 
                 st.session_state.todo_miesiac = None; st.rerun()
             
